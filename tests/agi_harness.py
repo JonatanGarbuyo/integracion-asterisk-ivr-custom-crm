@@ -1,21 +1,29 @@
 """Runs the real AGI executable against an Asterisk protocol boundary double."""
 import shlex
+import signal
 import subprocess
 import sys
 import threading
 import time
 
-from test_admin import ENTRY
+from boundary_support import ENTRY
 
 
-def call(config, profile='welcome', callerid='555123', variables=None, digits=''):
+def call(config, profile='welcome', callerid='555123', variables=None, digits='', extensions=None, hangup_after=None):
     variables = dict(variables or {})
     commands = []
-    process = subprocess.Popen([sys.executable, str(ENTRY), '--config', str(config), 'agi', profile],
+    command = [sys.executable, str(ENTRY), '--config', str(config)]
+    if extensions:
+        command.extend(['--extensions', str(extensions)])
+    process = subprocess.Popen(command + ['agi', profile],
                                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                universal_newlines=True, bufsize=1)
     timer = threading.Timer(6, process.kill)
     timer.start()
+    hangup = None
+    if hangup_after:
+        hangup = threading.Timer(hangup_after, lambda: process.send_signal(signal.SIGHUP))
+        hangup.start()
     start = time.monotonic()
     process.stdin.write('agi_uniqueid: 1700000000.1\nagi_callerid: ' + callerid + '\nagi_channel: SIP/caller-0001\n\n')
     process.stdin.flush()
@@ -41,6 +49,8 @@ def call(config, profile='welcome', callerid='555123', variables=None, digits=''
         return variables, commands, time.monotonic() - start
     finally:
         timer.cancel()
+        if hangup:
+            hangup.cancel()
         if process.poll() is None:
             process.kill()
             process.wait()

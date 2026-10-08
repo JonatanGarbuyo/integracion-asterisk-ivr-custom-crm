@@ -65,7 +65,7 @@ def execute(extension, request, budget_ms):
                                    stdin=subprocess.PIPE, stdout=output, stderr=subprocess.DEVNULL,
                                    start_new_session=True, close_fds=True)
         try:
-            process.communicate(json.dumps(request, ensure_ascii=False, allow_nan=False).encode('utf-8'),
+            process.communicate(json.dumps(request, ensure_ascii=True, allow_nan=False).encode('utf-8'),
                                 timeout=budget_ms / 1000.0)
             if process.returncode:
                 raise ValueError('Handler failed')
@@ -114,7 +114,7 @@ def run(configuration, identifier, channel):
             destination = response.get('destination')
             if destination not in (profile['next_destination'], profile['fallback_destination']):
                 raise ValueError('Unapproved destination')
-        context = json.dumps(response.get('context_patch', {}), ensure_ascii=False, allow_nan=False, separators=(',', ':'))
+        context = json.dumps(response.get('context_patch', {}), ensure_ascii=True, allow_nan=False, separators=(',', ':'))
         channel.set('__CALLFLOW_CONTEXT_JSON', context)
         channel.set('CALLFLOW_NEXT_DESTINATION', destination)
         channel.set('CALLFLOW_HANDLER_STATUS', 'completed')

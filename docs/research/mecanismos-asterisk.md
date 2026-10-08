@@ -1,6 +1,6 @@
 # Mecanismos de Asterisk para IVR y CRM
 
-Investigación documental: 2026-10-07. La PBX está en producción; sus versiones de Issabel/Asterisk y configuración no se conocen. Esto resuelve mecanismos generales, no compatibilidad instalada ni autorización para desplegar. No hay repositorio Git: se conserva este archivo sin crear rama.
+Investigación documental iniciada el 2026-10-07. El inventario recibido el 2026-10-08 confirma Issabel 4/Asterisk 11.25.3; el dialplan efectivo sigue pendiente. Esto resuelve mecanismos generales, no compatibilidad instalada ni autorización para desplegar.
 
 ## Observaciones documentadas
 
@@ -66,6 +66,8 @@ Versión exacta, módulos/hook disponibles, dialplan generado y puntos persisten
 
 ## Ampliación: soporte objetivo Asterisk 16/18 e integración Issabel
 
+Antecedente basado en las versiones inicialmente estimadas. Asterisk 16 queda como investigación histórica; la matriz actual exige 11.25.3 y 18.
+
 Se leyeron las ramas oficiales `16` y `18` mediante el lector GitHub. `app_queue.c` de ambas prepara `MEMBERINTERFACE`/`MEMBERNAME` cuando `setinterfacevar` está activo, ejecuta el gosub sobre el miembro y el AGI sobre `qe->chan` (llamante), antes del bridge. Por tanto un AGI de Queue es viable sin consumidor AMI; conviene que el aviso remoto no prolongue esa fase. Se verificaron además los parámetros `membergosub` en ambos ejemplos `queues.conf.sample`.
 
 Se leyó `queues/functions.inc/dialplan.php` del repositorio oficial IssabelPBX: genera `QAGI` desde `VQ_AGI`, `QGOSUB` desde `VQ_GOSUB` y los pasa a `ext_queue`. Es evidencia del código público actual, no verificación de los paquetes instalados en Issabel 4 ni en la imagen Issabel 5 mencionada.
@@ -77,3 +79,18 @@ Fuentes adicionales:
 - https://github.com/asterisk/asterisk/blob/16/configs/samples/queues.conf.sample
 - https://github.com/asterisk/asterisk/blob/18/configs/samples/queues.conf.sample
 - https://github.com/IssabelFoundation/issabelPBX/blob/master/queues/functions.inc/dialplan.php
+
+## Inventario real y primera entrega genérica (2026-10-08)
+
+El cliente informó Issabel 4.0.0-1, CentOS 7.9, Asterisk 11.25.3, IssabelPBX 2.11.0-48, issabel-framework 4.0.0-10 y issabel-callcenter 4.0.0-5. El inventario completo está en #4. PHP, Python, dialplan generado, miembros de cola y permisos siguen por verificar.
+
+Se leyó `apps/app_queue.c` del tag exacto **11.25.3**: antes del bridge ejecuta `pbx_exec(qe->chan, application, agiexec)` para la aplicación AGI si se configuró el argumento correspondiente. Por tanto el mecanismo de Queue AGI existe también en esta versión. La primera entrega no instala el hook de cola: #23 deberá verificar variables de miembro, coexistencia con hooks y generación efectiva en los paquetes del cliente.
+
+También se leyó la fuente de IssabelPBX de 2017 (`5d3ea9073d78aa2476fddf4b267faa8839417e4c`) para comprobar la API legacy `customappsreg_customdests_get/add/delete/edit`, `needreload()` y el generador `$ext->add`. El addon usa ese registro de destinos y su propio callback `_get_config`; no modifica `extensions_additional.conf`. La fuente histórica respalda el diseño de API, pero no identifica por sí sola el contenido exacto del RPM 2.11.0-48.
+
+Fuentes primarias:
+
+- https://github.com/asterisk/asterisk/blob/11.25.3/apps/app_queue.c#L5979-L5989
+- https://github.com/IssabelFoundation/issabelPBX/blob/5d3ea9073d78aa2476fddf4b267faa8839417e4c/customappsreg/functions.inc.php
+- https://github.com/IssabelFoundation/issabelPBX/blob/5d3ea9073d78aa2476fddf4b267faa8839417e4c/framework/amp_conf/htdocs/admin/libraries/extensions.class.php
+- https://github.com/IssabelFoundation/issabelPBX/blob/master/miscapps/functions.inc.php

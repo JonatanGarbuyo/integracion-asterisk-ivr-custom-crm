@@ -1,34 +1,9 @@
 import json
 import pathlib
-import subprocess
-import sys
-import tempfile
 import unittest
+from boundary_support import AdminBoundary
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-ENTRY = ROOT / 'module' / 'backend' / 'entry.py'
-
-
-class Administration(unittest.TestCase):
-    def setUp(self):
-        self.directory = tempfile.TemporaryDirectory()
-        self.addCleanup(self.directory.cleanup)
-        self.config = pathlib.Path(self.directory.name) / 'profiles.conf'
-
-    def request(self, action, **data):
-        process = subprocess.run(
-            [sys.executable, str(ENTRY), '--config', str(self.config), 'admin'],
-            input=json.dumps(dict(action=action, **data)), universal_newlines=True,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
-        self.assertEqual(process.returncode, 0, process.stderr)
-        return json.loads(process.stdout)
-
-    def profile(self, identifier='welcome'):
-        return dict(identifier=identifier, extension='example', enabled=True,
-                    next_destination='ext-local,201,1',
-                    fallback_destination='ext-local,202,1',
-                    execution_budget_ms=800, input_source='none',
-                    settings={'greeting': 'Buen día', 'api_token': 'private-token'})
+class Administration(AdminBoundary, unittest.TestCase):
 
     def test_schema_form_saves_two_independent_profiles_and_redacts_secrets(self):
         form = self.request('describe')
@@ -69,3 +44,15 @@ class Administration(unittest.TestCase):
         response = self.request('describe')
         self.assertFalse(response['ok'])
         self.assertNotIn('secret-value', json.dumps(response))
+
+    def test_extension_cannot_publish_credentials_as_schema_defaults(self):
+        self.extensions = pathlib.Path(self.directory.name) / 'extensions'
+        module = self.extensions / 'unsafe'
+        module.mkdir(parents=True)
+        manifest = dict(identifier='unsafe', title='Unsafe', contract_version=1,
+                        command=['@python', 'handler.py'],
+                        fields={'token': {'type': 'secret', 'label': 'Token', 'default': 'credential-leak'}})
+        (module / 'manifest.json').write_text(json.dumps(manifest))
+        response = self.request('describe')
+        self.assertFalse(response['ok'])
+        self.assertNotIn('credential-leak', json.dumps(response))

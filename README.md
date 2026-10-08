@@ -1,16 +1,20 @@
-# Integración Asterisk IVR ↔ CRM
+# CallFlow Hooks
 
-Identificación de afiliados por CUIL, consulta de obra social, enrutamiento a cola/0800 y aviso stateless del operador que respondió. Soporte objetivo: Issabel 4/Asterisk 16 e Issabel 5/Asterisk 18, pendiente de comprobar en las instalaciones reales.
+Addon extensible para Issabel: un IVR normal selecciona un perfil que ejecuta un handler local JSON y continúa a un destino aprobado. Afiliados CRM será el primer caso de uso comercial.
 
-Estado: especificación y planificación publicadas; implementación de PBX aún no iniciada.
+La primera entrega incluye formulario nativo generado por esquema, perfiles independientes, .conf compartido con edición manual, destinos automáticos, entradas none/CallerID/DTMF/variable de canal, contexto por llamada y ejecución con presupuesto/contingencia. Se revisa en [PR #30](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/pull/30).
 
-- [Mapa Wayfinder: integración IVR y colas Issabel ↔ CRM](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/1).
-- [Especificación: integración IVR y colas Issabel ↔ CRM](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/2).
-- [Entregas y dependencias](docs/planning/index.md).
-- [Primera llamada completa con CRM simulado](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/11): punto de partida con una PBX de laboratorio y CRM simulado.
-- [Investigación técnica](docs/research/mecanismos-asterisk.md).
-- [Vocabulario](CONTEXT.md).
+- [Contrato del handler](docs/contracts/handler-v1.md).
+- [Configuración y extensiones](docs/configuration.md).
+- [Paquete y laboratorio](docs/laboratory.md).
+- [Mapa Wayfinder](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/1), [especificación](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/2) y [entregas](docs/planning/index.md).
+- [Investigación de Asterisk e Issabel](docs/research/mecanismos-asterisk.md).
 
-La consulta del IVR espera una respuesta acotada. El aviso desde Queue sale fuera del AGI sin esperar al CRM, sin sesión ni persistencia de notificaciones. La configuración operativa se mantiene en .conf custom; DNI y formulario web son ampliaciones opcionales.
+```bash
+python3 -m unittest discover -s tests -v
+python3 tools/build.py
+```
 
-Para continuar con las skills, seguir [AGENTS.md](AGENTS.md). Las relaciones de issues se conservan mediante el [workflow de planificación](.github/workflows/sync-planning.yml).
+CI ejecuta procesos JSON/AGI con Python 3.6, 3.9 y 3.12, y el formulario real PHP con 5.4 y 8.2, simulando únicamente las fronteras de Issabel. Sin PHP local, esas pruebas se omiten localmente y son obligatorias en CI.
+
+Objetivos de instalación: **Issabel 4/Asterisk 11.25.3/CentOS 7.9/IssabelPBX 2.11.0-48** e Issabel 5/Asterisk 18. Compatibilidad efectiva, audio y regeneración se validarán en VM. La integración de Afiliados y el hook opcional al responder cola pertenecen a las siguientes entregas; esta versión no los instala.

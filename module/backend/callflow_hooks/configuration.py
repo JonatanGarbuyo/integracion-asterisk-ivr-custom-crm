@@ -78,6 +78,9 @@ class Configuration:
             for field_name in module['fields']:
                 if not VARIABLE.fullmatch(field_name):
                     raise ConfigurationError('Nombre de campo inválido')
+                field = module['fields'][field_name]
+                if field['type'] == 'secret' and field.get('default', ''):
+                    raise ConfigurationError('Las credenciales no admiten valores por defecto')
             self.catalog[identifier] = module
 
     def normalize(self, profile):
@@ -169,6 +172,8 @@ class Configuration:
                     for k, v in item.items() if k != 'identifier'}
             output = io.StringIO()
             parser.write(output)
+            if len(output.getvalue().encode('utf-8')) > 262144:
+                raise ConfigurationError('Configuración demasiado grande')
             fd, temporary = tempfile.mkstemp(prefix='.profiles-', dir=str(self.path.parent))
             try:
                 with os.fdopen(fd, 'w', encoding='utf-8') as stream:

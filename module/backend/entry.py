@@ -4,10 +4,15 @@ import argparse
 import configparser
 import json
 import pathlib
+import signal
 import sys
 
 from callflow_hooks.configuration import Configuration
 from callflow_hooks.runtime import AGI, ChannelClosed, run
+
+
+def call_ended(signum, frame):
+    raise ChannelClosed()
 
 
 def main():
@@ -18,6 +23,8 @@ def main():
     parser.add_argument('profile', nargs='?')
     args = parser.parse_args()
     if args.action == 'agi':
+        signal.signal(signal.SIGHUP, call_ended)
+        signal.signal(signal.SIGTERM, call_ended)
         channel = None
         try:
             channel = AGI(sys.stdin, sys.stdout)
@@ -43,7 +50,7 @@ def main():
     except (ValueError, KeyError, TypeError, OSError, configparser.Error):
         # Never include exception details: external files/values may contain secrets.
         response = dict(ok=False, error='Configuración inválida o no disponible; revisar campos, versión y permisos')
-    json.dump(response, sys.stdout, ensure_ascii=False)
+    json.dump(response, sys.stdout, ensure_ascii=True)
     sys.stdout.write('\n')
 
 

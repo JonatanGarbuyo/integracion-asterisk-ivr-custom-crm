@@ -46,7 +46,7 @@ function callflowhooks_backend($request) {
 }
 
 function callflowhooks_register($identifier) {
-    if (!preg_match('/^[a-z][a-z0-9_-]{0,39}$/D', $identifier)) throw new Exception('Identificador inválido');
+    if (!is_string($identifier) || !preg_match('/^[a-z][a-z0-9_-]{0,39}$/D', $identifier)) throw new Exception('Identificador inválido');
     if (!function_exists('customappsreg_customdests_get')) throw new Exception('Activar Custom Destinations antes de CallFlow Hooks');
     $destination = 'callflow-profile-'.$identifier.',s,1';
     $existing = customappsreg_customdests_get($destination);
