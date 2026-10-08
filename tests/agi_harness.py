@@ -1,6 +1,8 @@
 """Asterisk boundary double: runs the real AGI and speaks its wire protocol."""
 import os
 import shlex
+import signal
+import threading
 import subprocess
 import sys
 import time
@@ -9,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run_agi(mode, config, variables=None, digits=None, uniqueid='1700000000.1', export_pythonpath=True, entrypoint=None):
+def run_agi(mode, config, variables=None, digits=None, uniqueid='1700000000.1', export_pythonpath=True, entrypoint=None, hangup_after=None):
     variables = dict(variables or {})
     digits = list(digits or [])
     commands = []
@@ -30,6 +32,11 @@ def run_agi(mode, config, variables=None, digits=None, uniqueid='1700000000.1', 
     started = time.monotonic()
     process.stdin.write('agi_uniqueid: ' + uniqueid + '\nagi_channel: PJSIP/caller-0001\n\n')
     process.stdin.flush()
+    timer = None
+    if hangup_after is not None:
+        timer = threading.Timer(hangup_after, lambda: process.send_signal(signal.SIGHUP))
+        timer.daemon = True
+        timer.start()
     for line in process.stdout:
         commands.append(line.strip())
         args = shlex.split(line)
@@ -50,9 +57,17 @@ def run_agi(mode, config, variables=None, digits=None, uniqueid='1700000000.1', 
             response = '200 result=' + str(ord(digit_stream.pop(0)) if digit_stream else 0) + '\n'
         if args[:2] == ['STREAM', 'FILE']:
             response = '200 result=0 endpos=8000\n'
-        process.stdin.write(response)
-        process.stdin.flush()
-    process.stdin.close()
+        try:
+            process.stdin.write(response)
+            process.stdin.flush()
+        except BrokenPipeError:
+            break
+    if timer:
+        timer.cancel()
+    try:
+        process.stdin.close()
+    except BrokenPipeError:
+        pass
     process.wait(timeout=5)
     errors = process.stderr.read()
     process.stdout.close()

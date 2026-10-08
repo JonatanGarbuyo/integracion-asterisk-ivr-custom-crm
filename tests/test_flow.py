@@ -293,6 +293,15 @@ Local/1002@from-queue/n = crm-user-b
             time.sleep(0.02)
         self.assertEqual(expected, {n['interaction_id']: n['affiliate_id'] for n in self.server.notifications})
 
+    def test_caller_hangup_interrupts_lookup_and_does_not_leave_an_affiliate(self):
+        self.server.lookup_delay = 1.5
+        variables, _, elapsed, errors = run_agi('identify', self.config,
+            digits=['20123456786'], hangup_after=0.3)
+        self.assertLess(elapsed, 0.8)
+        self.assertIn('caller_hangup', errors)
+        self.assertEqual('', variables['CRM_AFFILIATE_ID'])
+        self.assertEqual([], self.server.notifications)
+
     def test_configured_star_terminator_is_accepted_by_the_ivr(self):
         self.config.write_text(self.config.read_text().replace('attempts = 2', 'attempts = 2\nterminator = *'))
         variables, _, _, _ = run_agi('identify', self.config, digits=['20123456786*'])
