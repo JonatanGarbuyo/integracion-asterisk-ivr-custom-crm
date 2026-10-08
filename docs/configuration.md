@@ -1,6 +1,6 @@
 # Perfiles y extensiones
 
-El formulario está en **PBX → Configuración PBX → CallFlow Hooks**. Usa autenticación/permisos de IssabelPBX y token CSRF. Guarda en `/etc/asterisk/callflow-hooks/profiles.conf`, la misma fuente que consume el AGI. El listado y el formulario ocultan los campos declarados `secret`; un valor vacío conserva la credencial anterior. Para borrarla expresamente, editar el .conf.
+El formulario actual se abre en **IssabelPBX sin embeber → Applications → CallFlow Hooks**, `/admin/config.php?display=callflowhooks`. Su visibilidad en el menú PBX embebido no está resuelta. Usa autenticación/permisos de IssabelPBX y token CSRF. La pantalla nativa **PBX → CallFlow Hooks**, con sesión y ACL del framework Issabel, está pendiente según el [diseño de integración](native-addon-design.md). Guarda en `/etc/asterisk/callflow-hooks/profiles.conf`, la misma fuente que consume el AGI. El listado y el formulario ocultan los campos declarados `secret`; un valor vacío conserva la credencial anterior. Para borrarla expresamente, editar el .conf.
 
 ```ini
 [profile:welcome]

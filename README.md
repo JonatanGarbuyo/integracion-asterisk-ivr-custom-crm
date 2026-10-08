@@ -2,7 +2,7 @@
 
 Addon extensible para Issabel: un IVR normal selecciona un perfil que ejecuta un handler local JSON y continúa a un destino aprobado. Afiliados CRM será el primer caso de uso comercial.
 
-La primera entrega incluye formulario nativo generado por esquema, perfiles independientes, .conf compartido con edición manual, destinos automáticos, entradas none/CallerID/DTMF/variable de canal, contexto por llamada y ejecución con presupuesto/contingencia. Se revisa en [PR #30](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/pull/30).
+La implementación actual incluye un formulario **IssabelPBX**, perfiles independientes, .conf compartido con edición manual, destinos automáticos, entradas none/CallerID/DTMF/variable de canal, contexto por llamada y ejecución con presupuesto/contingencia. La administración nativa de Issabel, el paquete RPM y la instalación directa desde GitHub están pendientes; su [diseño](docs/native-addon-design.md) completa el alcance de la primera entrega. Se revisa en [PR #30](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/pull/30).
 
 - [Contrato del handler](docs/contracts/handler-v1.md).
 - [Configuración y extensiones](docs/configuration.md).

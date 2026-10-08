@@ -11,7 +11,9 @@ Esta entrega se verifica contra procesos reales y fronteras simuladas. Las dos P
 
 Crear ambas VM en VirtualBox sin conectarlas a la troncal del cliente. Usar red host-only para dos softphones/extensiones y un IVR habitual. Antes de instalar, capturar snapshot de la VM y registrar `php -v`, `/usr/bin/python3 --version`, `amportal a ma list`, propietario/grupo del servicio web/PBX y estado SELinux. El núcleo exige Python >=3.6 en `/usr/bin/python3`, PHP >=5.4 con openssl y proc_open habilitado. El inventario suministrado no confirma esos runtimes; instalar el intérprete adecuado en la VM si falta, sin cambiar el Asterisk del cliente.
 
-## Paquete nativo
+## Paquete IssabelPBX actual
+
+El `.tgz` siguiente instala un módulo IssabelPBX; todavía no registra una pantalla nativa en el menú exterior de Issabel. En la VM del usuario se ve sin embeber en `/admin/config.php?display=callflowhooks`. La [administración nativa y la instalación directa desde GitHub](native-addon-design.md) están previstas para completar esta entrega; aún no existe su RPM ni un comando de instalación remota disponible.
 
 ```bash
 python3 tools/build.py
