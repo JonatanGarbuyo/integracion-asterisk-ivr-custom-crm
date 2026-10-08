@@ -4,3 +4,8 @@ __pycache__/
 .env
 *.log
 artifacts/
+*.pyc
+dist/
+rpmbuild/
+issabel_crm_secrets.conf
+*.local.conf

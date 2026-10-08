@@ -1,0 +1,35 @@
+; Defaults de laboratorio: revisar antes de habilitar un piloto.
+; Este archivo tiene formato .conf/INI para el AGI, no se incluye como dialplan.
+[general]
+pbx_id = pbx-lab
+fallback_queue = 600
+prompt = custom/enter-cuil
+invalid_prompt = pbx-invalid
+attempts = 2
+terminator = #
+digit_timeout_ms = 5000
+validate_checksum = yes
+lookup_timeout = 2
+notify_timeout = 3
+notify_max_workers = 16
+runtime_dir = /run/issabel-crm
+external_timeout = 30
+
+[crm]
+lookup_url = http://127.0.0.1:8080/affiliates
+notify_url = http://127.0.0.1:8080/answered
+allow_http = yes
+; Producción: HTTPS y allow_http=no. Activar el archivo de credenciales si corresponde.
+; secrets_file = /etc/asterisk/issabel_crm_secrets.conf
+
+[routes]
+OS_A = queue:601
+OS_B = queue:602
+OS_EXTERNAL = external:08001234567
+
+[agents]
+; Clave exacta de MEMBERINTERFACE. Segundo campo opcional: interno comprobado.
+PJSIP/1001 = crm-user-a,1001
+SIP/1001 = crm-user-a,1001
+Local/1002@from-queue/n = crm-user-b
+Agent/1003 = crm-user-c
