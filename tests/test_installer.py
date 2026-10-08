@@ -39,7 +39,7 @@ if '-qp' in sys.argv:
         converter.write_text('#!'+sys.executable+'\nprint("package fixture")\n')
         converter.chmod(0o755)
         extract = self.bin/'cpio'
-        extract.write_text('#!'+sys.executable+'\nimport pathlib,sys\nsys.stdin.read()\np=pathlib.Path("usr/share/callflow-hooks");p.mkdir(parents=True,exist_ok=True)\n(p/"lifecycle.py").write_text("print(\\"preflight fixture\\")\\n")\n')
+        extract.write_text('#!'+sys.executable+'\nimport pathlib,sys\nsys.stdin.read()\np=pathlib.Path("usr/share/callflow-hooks");p.mkdir(parents=True,exist_ok=True)\n(p/"lifecycle.py").write_text("import os,sys\\nif os.environ.get(\\"PREFLIGHT_FAIL\\"):\\n print(\\"external-database-password\\",file=sys.stderr)\\n print(\\"CallFlow Hooks: fase preflight incompleta. Activar Custom Destinations antes de instalar\\",file=sys.stderr)\\n sys.exit(1)\\nprint(\\"preflight fixture\\")\\n")\n')
         extract.chmod(0o755)
         self.environment = dict(os.environ, PATH=str(self.bin)+os.pathsep+os.environ['PATH'],
                                 RPM_LOG=str(self.log), RELEASE_MANIFEST=json.dumps(self.manifest))
@@ -88,5 +88,14 @@ runpy.run_path(sys.argv[0],run_name='__main__')
                             {'PACKAGE_COMMIT': 'b'*40}]:
             result = self.install(**environment)
             self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn('-Uvh', self.log.read_text())
+
+    @unittest.skipUnless(os.geteuid() == 0, 'Root installation boundary runs in CI container')
+    def test_preflight_failure_reports_own_safe_reason_and_never_installs(self):
+        result = self.install(prepare=False, PREFLIGHT_FAIL='1')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('fase preflight incompleta', result.stderr)
+        self.assertIn('Activar Custom Destinations', result.stderr)
+        self.assertNotIn('external-database-password', result.stdout+result.stderr)
         self.assertNotIn('-Uvh', self.log.read_text())
 

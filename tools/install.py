@@ -15,10 +15,16 @@ import urllib.request
 REPOSITORY = 'https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm'
 
 
-def command(arguments, timeout=120):
+def command(arguments, timeout=120, lifecycle_diagnostics=False):
     result = subprocess.run(arguments, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             universal_newlines=True, timeout=timeout)
     if result.returncode:
+        if lifecycle_diagnostics:
+            # Only our lifecycle's deliberately nonsecret errors are public.
+            # Never forward PHP/PBX output, arbitrary stderr or tracebacks.
+            for line in result.stderr.splitlines():
+                if line.startswith('CallFlow Hooks: fase ') and len(line) <= 500:
+                    raise RuntimeError(line)
         raise RuntimeError('Falló '+pathlib.Path(arguments[0]).name+'; revisar dependencias o instalación parcial')
     return result.stdout.strip()
 
@@ -104,7 +110,7 @@ def main():
         if not args.prepare_only and args.checkout:
             # Check the target before spending build time or replacing package files.
             checkout = checkout_revision(args)
-            command([sys.executable,str(checkout/'packaging/lifecycle.py'),'preflight'])
+            command([sys.executable,str(checkout/'packaging/lifecycle.py'),'preflight'], lifecycle_diagnostics=True)
         if args.output:
             directory = pathlib.Path(args.output).resolve(); directory.mkdir(parents=True, exist_ok=True)
         else:
@@ -124,9 +130,9 @@ def main():
                     subprocess.check_call(['cpio','-id','--no-absolute-filenames',
                                            './usr/share/callflow-hooks/lifecycle.py','./usr/share/callflow-hooks/pbx-state.php'],
                                           stdin=stream,cwd=str(payload),stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-                command([sys.executable,str(payload/'usr/share/callflow-hooks/lifecycle.py'),'preflight'])
+                command([sys.executable,str(payload/'usr/share/callflow-hooks/lifecycle.py'),'preflight'], lifecycle_diagnostics=True)
             command(['rpm','-Uvh','--replacepkgs',str(package)])
-            command(['callflow-hooksctl','status'])
+            command(['callflow-hooksctl','status'], lifecycle_diagnostics=True)
         print(json.dumps(dict(manifest, installed=not args.prepare_only), sort_keys=True))
         if not args.prepare_only: print('Abrir PBX → CallFlow Hooks. Revisar destinos y aplicar configuración desde PBX.')
     except (RuntimeError, OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
