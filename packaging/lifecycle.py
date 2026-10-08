@@ -52,11 +52,21 @@ class Lifecycle:
                 raise RuntimeError('Identidad de servicio inválida')
         if system['user'] == 'root' or system['web_user'] != system['user']:
             raise RuntimeError('Este paquete requiere PHP y Asterisk con el mismo usuario no root')
-        processes = command(['ps', '-eo', 'user=,comm=']).splitlines()
+        # ps can abbreviate user names according to width/personality. Compare
+        # effective numeric identities instead of presentation strings.
+        identity = command(['id', '-u', system['user']]).strip()
+        if not identity.isdigit() or int(identity) == 0:
+            raise RuntimeError('UID del usuario de servicio inválido')
+        expected_uid = int(identity)
+        processes = command(['ps', '-eo', 'uid=,comm=']).splitlines()
         for name in ['asterisk', 'httpd']:
-            workers = [line.split()[0] for line in processes if len(line.split()) == 2 and line.split()[1] == name and line.split()[0] != 'root']
-            if not workers or set(workers) != {system['user']}:
-                raise RuntimeError('Comprobar usuario efectivo del servicio '+name)
+            observed = {int(line.split()[0]) for line in processes if len(line.split()) == 2 and
+                        line.split()[1] == name and line.split()[0].isdigit()}
+            workers = observed - {0} if name == 'httpd' else observed
+            if not workers or workers != {expected_uid}:
+                values = ','.join(str(uid) for uid in sorted(observed)) or 'ninguno'
+                raise RuntimeError('Comprobar usuario efectivo del servicio '+name+
+                                   ': UID esperado '+str(expected_uid)+'; UID observados '+values)
         return system
 
     def executable(self, name):

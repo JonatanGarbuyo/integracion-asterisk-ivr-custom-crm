@@ -1,6 +1,6 @@
 # Perfiles y extensiones
 
-El RPM 0.2.0 registra **PBX → CallFlow Hooks**, `/index.php?menu=callflowhooks`, con sesión, ACL y CSRF nativos de Issabel. La página de IssabelPBX sin embeber sigue disponible como acceso alternativo; el `.tgz` instala únicamente ese puente, no el módulo nativo. La integración instalada se comprobará en la VM según el [laboratorio](laboratory.md). Ambas pantallas guardan en `/etc/asterisk/callflow-hooks/profiles.conf`, la misma fuente que consume el AGI. El listado y el formulario ocultan los campos declarados `secret`; un valor vacío conserva la credencial anterior. Para borrarla expresamente, editar el .conf.
+El RPM 0.2.1 registra **PBX → CallFlow Hooks**, `/index.php?menu=callflowhooks`, con sesión, ACL y CSRF nativos de Issabel. La página de IssabelPBX sin embeber sigue disponible como acceso alternativo; el `.tgz` instala únicamente ese puente, no el módulo nativo. La integración instalada se comprobará en la VM según el [laboratorio](laboratory.md). Ambas pantallas guardan en `/etc/asterisk/callflow-hooks/profiles.conf`, la misma fuente que consume el AGI. El listado y el formulario ocultan los campos declarados `secret`; un valor vacío conserva la credencial anterior. Para borrarla expresamente, editar el .conf.
 
 ```ini
 [profile:welcome]

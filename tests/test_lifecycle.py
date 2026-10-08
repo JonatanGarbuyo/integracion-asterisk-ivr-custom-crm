@@ -38,7 +38,14 @@ state=pathlib.Path(os.environ['BOUNDARY_STATE'])
 data=json.loads(state.read_text())
 with open(os.environ['BOUNDARY_LOG'],'a') as stream: stream.write(json.dumps([name]+sys.argv[1:])+'\\n')
 if name=='rpm': print('4.0.0\\n2.11.0')
-elif name=='ps': print('asterisk httpd\\nasterisk asterisk\\nroot httpd')
+elif name=='id': print('1001')
+elif name=='ps':
+ if 'uid=,comm=' in sys.argv:
+  print('1001 httpd\\n'+os.environ.get('BOUNDARY_ASTERISK_UID','1001')+' asterisk\\n0 httpd')
+  if os.environ.get('BOUNDARY_EXTRA_ROOT_ASTERISK'): print('0 asterisk')
+ elif os.environ.get('BOUNDARY_TRUNCATED_PS'):
+  print('asteris+ httpd\\nasteris+ asterisk\\nroot httpd')
+ else: print('asterisk httpd\\nasterisk asterisk\\nroot httpd')
 elif name=='php':
  if 'framework' in sys.argv: print(json.dumps({{'menu':data['menu'],'acl':data['acl']}}))
  elif 'reload' in sys.argv: print(json.dumps({{'ok':not bool(os.environ.get('BOUNDARY_RELOAD_FAIL'))}}))
@@ -65,7 +72,7 @@ elif name=='issabel-menuremove':
 elif name=='asterisk': print('0 active channels\\n0 active calls')
 state.write_text(json.dumps(data))
 '''.format(python=sys.executable)
-        for name in ['rpm','ps','php','chown','module_admin','issabel-menumerge','issabel-menuremove','asterisk','amportal']:
+        for name in ['rpm','ps','id','php','chown','module_admin','issabel-menumerge','issabel-menuremove','asterisk','amportal']:
             executable = self.bin / name
             executable.write_text(script)
             executable.chmod(0o755)
@@ -91,6 +98,23 @@ state.write_text(json.dumps(data))
         result = self.lifecycle('status')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)['commit'], 'a'*40)
+
+    def test_service_identity_uses_uid_despite_truncated_ps_usernames(self):
+        result = self.lifecycle('preflight', BOUNDARY_TRUNCATED_PS='1')
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_wrong_or_root_asterisk_uid_is_reported_before_installation(self):
+        for uid in ['1002', '0']:
+            result = self.lifecycle('install', BOUNDARY_ASTERISK_UID=uid)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('UID esperado 1001', result.stderr)
+            self.assertIn('UID observados '+uid, result.stderr)
+            self.assertFalse(json.loads(self.state.read_text())['enabled'])
+
+    def test_root_exception_applies_only_to_apache_parent(self):
+        result = self.lifecycle('preflight', BOUNDARY_EXTRA_ROOT_ASTERISK='1')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('UID observados 0,1001', result.stderr)
 
     def test_partial_menu_failure_is_reported_and_can_be_repaired(self):
         result = self.lifecycle('install', BOUNDARY_MENU_FAIL='1')

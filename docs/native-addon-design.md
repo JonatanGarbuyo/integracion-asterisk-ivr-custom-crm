@@ -1,6 +1,6 @@
 # Administración nativa e instalación desde el repositorio
 
-Diseño de la corrección de la primera entrega, ticket [#21](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/21). La versión 0.2.0 implementa este diseño con pruebas en fronteras simuladas y construcción RPM real. Se distribuye como prerelease de laboratorio; la instalación efectiva en las VM sigue pendiente. La especificación y los tickets de GitHub siguen siendo canónicos.
+Diseño de la corrección de la primera entrega, ticket [#21](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/21). La versión 0.2.1 implementa este diseño con pruebas en fronteras simuladas y construcción RPM real. Se distribuye como prerelease de laboratorio; la instalación efectiva en las VM sigue pendiente. La especificación y los tickets de GitHub siguen siendo canónicos.
 
 ## Componentes
 
