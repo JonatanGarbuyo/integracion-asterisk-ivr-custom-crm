@@ -35,7 +35,7 @@ class AddonTest(unittest.TestCase):
         self.assertEqual(0, self.command('install', '--root', str(self.root)).returncode)
         self.assertEqual(original, config.read_text())
         self.assertEqual(1, self.custom.read_text().count('#include issabel_crm_extensions.conf'))
-        self.assertIn('CRM_DEST=699', (self.root / 'etc/asterisk/issabel_crm_extensions.conf').read_text())
+        self.assertIn('CALLFLOW_ROUTING_DESTINATION_NUMBER=699', (self.root / 'etc/asterisk/issabel_crm_extensions.conf').read_text())
         self.assertEqual(0, self.command('uninstall', '--root', str(self.root)).returncode)
         self.assertEqual('[existing-custom]\nexten => s,1,NoOp(existing)\n', self.custom.read_text())
         self.assertTrue(config.exists())
@@ -55,7 +55,7 @@ class AddonTest(unittest.TestCase):
         config = self.root / 'etc/asterisk/issabel_crm.conf'
         variables, _, _, _ = run_agi('identify', config, digits=['', ''],
             export_pythonpath=False, entrypoint=self.root / 'var/lib/asterisk/agi-bin/issabel-crm-identify.agi')
-        self.assertEqual('invalid_cuil', variables['CRM_RESULT'])
+        self.assertEqual('invalid_cuil', variables['CALLFLOW_ROUTING_STATUS'])
 
     def test_invalid_candidate_is_rejected_without_replacing_live_config(self):
         self.assertEqual(0, self.command('install', '--root', str(self.root)).returncode)
@@ -70,8 +70,8 @@ class AddonTest(unittest.TestCase):
     def test_dialplan_preserves_issabel_queue_and_outbound_routing(self):
         self.assertEqual(0, self.command('install', '--root', str(self.root)).returncode)
         text = (self.root / 'etc/asterisk/issabel_crm_extensions.conf').read_text()
-        self.assertIn('Goto(ext-queues,${CRM_DEST},1)', text)
+        self.assertIn('Goto(ext-queues,${CALLFLOW_ROUTING_DESTINATION_NUMBER},1)', text)
         self.assertIn('Set(VQ_AGI=issabel-crm-answer.agi)', text)
-        self.assertIn('CRM_PREVIOUS_QAGI', text)
-        self.assertIn('Dial(Local/${CRM_DEST}@from-internal/n,30,g)', text)
+        self.assertIn('CALLFLOW_QUEUE_PREVIOUS_ANSWER_AGI', text)
+        self.assertIn('Dial(Local/${CALLFLOW_ROUTING_DESTINATION_NUMBER}@from-internal/n,30,g)', text)
         self.assertNotIn('Queue(', text, 'must retain generated queue features')

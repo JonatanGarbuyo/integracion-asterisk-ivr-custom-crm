@@ -100,14 +100,37 @@ Local/1002@from-queue/n = crm-user-b
 
     def test_installed_style_import_also_locates_the_http_subprocess_module(self):
         variables, _, _, _ = run_agi('identify', self.config, digits=['20123456786'], export_pythonpath=False)
-        self.assertEqual('found', variables['CRM_RESULT'])
-        variables.update(MEMBERINTERFACE='PJSIP/1001', CRM_QUEUE='601')
+        self.assertEqual('found', variables['CALLFLOW_ROUTING_STATUS'])
+        variables.update(MEMBERINTERFACE='PJSIP/1001', CALLFLOW_QUEUE_NAME='601')
         run_agi('answer', self.config, variables=variables, export_pythonpath=False)
         self.assertTrue(self.server.received.wait(2))
 
+    def test_wire_names_describe_call_affiliate_routing_and_queue_ownership(self):
+        import shlex
+        variables, identify_commands, _, _ = run_agi('identify', self.config, digits=['20123456786'])
+        required = {
+            'CALLFLOW_CALL_INTERACTION_ID', 'CALLFLOW_ASTERISK_CHANNEL_UNIQUEID',
+            'CALLFLOW_ASTERISK_LINKEDID', 'CALLFLOW_PBX_INSTANCE_ID',
+            'CALLFLOW_AFFILIATE_CUIL', 'CALLFLOW_CRM_AFFILIATE_ID',
+            'CALLFLOW_CRM_OBRA_SOCIAL_CODE', 'CALLFLOW_ROUTING_STATUS',
+            'CALLFLOW_ROUTING_DESTINATION_TYPE', 'CALLFLOW_ROUTING_DESTINATION_NUMBER',
+            'CALLFLOW_QUEUE_MEMBER_CRM_MAP_HASH'}
+        self.assertTrue(required.issubset(variables), 'AGI must publish the descriptive CallFlow contract')
+        self.assertNotEqual(variables['CALLFLOW_CALL_INTERACTION_ID'], variables['CALLFLOW_ASTERISK_CHANNEL_UNIQUEID'])
+        variables.update(MEMBERINTERFACE='PJSIP/1001', MEMBERNAME='Operador A',
+            CALLFLOW_QUEUE_NAME='601', CALLFLOW_QUEUE_PREVIOUS_ANSWER_AGI='custom-audit.agi')
+        _, answer_commands, _, _ = run_agi('answer', self.config, variables=variables)
+        self.assertIn('EXEC "AGI" "custom-audit.agi"', answer_commands)
+        self.assertTrue(self.server.received.wait(2))
+        for line in identify_commands + answer_commands:
+            args = shlex.split(line)
+            if args[:2] in (['SET', 'VARIABLE'], ['GET', 'VARIABLE']):
+                name = args[2].lstrip('_')
+                self.assertTrue(name.startswith('CALLFLOW_') or name in ('MEMBERINTERFACE', 'MEMBERNAME'), name)
+
     def identified(self, member='PJSIP/1001', uniqueid='1700000000.1'):
         variables, _, _, _ = run_agi('identify', self.config, digits=['20123456786'], uniqueid=uniqueid)
-        variables.update(MEMBERINTERFACE=member, MEMBERNAME='Operador', CRM_QUEUE='601')
+        variables.update(MEMBERINTERFACE=member, MEMBERNAME='Operador', CALLFLOW_QUEUE_NAME='601')
         return variables
 
     def test_lookup_failures_clear_old_affiliate_and_continue_to_general_queue(self):
@@ -123,10 +146,10 @@ Local/1002@from-queue/n = crm-user-b
             with self.subTest(expected=expected):
                 self.server.lookup_status, self.server.lookup_body = status, body
                 variables, _, _, errors = run_agi('identify', self.config,
-                    variables={'CRM_AFFILIATE_ID': 'stale-affiliate'}, digits=['20123456786'])
-                self.assertEqual(expected, variables['CRM_RESULT'])
+                    variables={'CALLFLOW_CRM_AFFILIATE_ID': 'stale-affiliate'}, digits=['20123456786'])
+                self.assertEqual(expected, variables['CALLFLOW_ROUTING_STATUS'])
                 self.assertEqual(('queue', '600', affiliate),
-                    (variables['CRM_DEST_TYPE'], variables['CRM_DEST'], variables['CRM_AFFILIATE_ID']))
+                    (variables['CALLFLOW_ROUTING_DESTINATION_TYPE'], variables['CALLFLOW_ROUTING_DESTINATION_NUMBER'], variables['CALLFLOW_CRM_AFFILIATE_ID']))
                 self.assertNotIn('20123456786', errors)
                 run_agi('answer', self.config, variables=variables)
         self.assertEqual([], self.server.notifications)
@@ -135,8 +158,8 @@ Local/1002@from-queue/n = crm-user-b
         self.config.write_text(self.config.read_text().replace('lookup_timeout = 1', 'lookup_timeout = 0.25'))
         self.server.trickle = 0.05
         variables, _, elapsed, _ = run_agi('identify', self.config, digits=['20123456786'])
-        self.assertEqual('timeout', variables['CRM_RESULT'])
-        self.assertEqual('600', variables['CRM_DEST'])
+        self.assertEqual('timeout', variables['CALLFLOW_ROUTING_STATUS'])
+        self.assertEqual('600', variables['CALLFLOW_ROUTING_DESTINATION_NUMBER'])
         self.assertLess(elapsed, 0.8)
 
     def test_answer_returns_and_closes_agi_stream_before_slow_crm_responds(self):
@@ -191,7 +214,7 @@ Local/1002@from-queue/n = crm-user-b
             member = 'PJSIP/1001' if index % 2 == 0 else 'Local/1002@from-queue/n'
             variables = self.identified(member, '1700000000.' + str(index))
             run_agi('answer', self.config, variables=variables)
-            return variables['CRM_INTERACTION_ID'], 'crm-user-a' if index % 2 == 0 else 'crm-user-b'
+            return variables['CALLFLOW_CALL_INTERACTION_ID'], 'crm-user-a' if index % 2 == 0 else 'crm-user-b'
         with ThreadPoolExecutor(max_workers=4) as pool:
             expected = dict(pool.map(call, range(4)))
         deadline = time.monotonic() + 3
@@ -204,7 +227,7 @@ Local/1002@from-queue/n = crm-user-b
     def test_manual_map_changes_affect_new_calls_without_code_changes(self):
         self.config.write_text(self.config.read_text().replace('queue:601', 'queue:602').replace('crm-user-a', 'crm-user-new'))
         variables = self.identified()
-        self.assertEqual('602', variables['CRM_DEST'])
+        self.assertEqual('602', variables['CALLFLOW_ROUTING_DESTINATION_NUMBER'])
         run_agi('answer', self.config, variables=variables)
         self.assertTrue(self.server.received.wait(2))
         self.assertEqual('crm-user-new', self.server.notifications[0]['crm_user_id'])
@@ -212,24 +235,24 @@ Local/1002@from-queue/n = crm-user-b
     def test_external_route_is_selected_only_from_local_approved_map(self):
         self.server.lookup_body = b'{"affiliate_id":"af-demo-2","obra_social":"OS_B"}'
         variables, _, _, _ = run_agi('identify', self.config, digits=['20123456786'])
-        self.assertEqual(('external', '08001234567'), (variables['CRM_DEST_TYPE'], variables['CRM_DEST']))
+        self.assertEqual(('external', '08001234567'), (variables['CALLFLOW_ROUTING_DESTINATION_TYPE'], variables['CALLFLOW_ROUTING_DESTINATION_NUMBER']))
         self.assertEqual([], self.server.notifications)
 
     def test_bad_config_preserves_preseeded_fallback_and_does_not_reuse_identity(self):
         self.config.write_text(self.config.read_text().replace('queue:601', 'external:${SHELL(evil)}'))
         variables, _, _, errors = run_agi('identify', self.config,
-            variables={'CRM_AFFILIATE_ID': 'stale', 'CRM_DEST': '600', 'CRM_DEST_TYPE': 'queue'},
+            variables={'CALLFLOW_CRM_AFFILIATE_ID': 'stale', 'CALLFLOW_ROUTING_DESTINATION_NUMBER': '600', 'CALLFLOW_ROUTING_DESTINATION_TYPE': 'queue'},
             digits=['20123456786'])
-        self.assertEqual('config_error', variables['CRM_RESULT'])
-        self.assertEqual('600', variables['CRM_DEST'])
-        self.assertEqual('', variables['CRM_AFFILIATE_ID'])
+        self.assertEqual('config_error', variables['CALLFLOW_ROUTING_STATUS'])
+        self.assertEqual('600', variables['CALLFLOW_ROUTING_DESTINATION_NUMBER'])
+        self.assertEqual('', variables['CALLFLOW_CRM_AFFILIATE_ID'])
         self.assertNotIn('evil', errors)
 
     def test_recognized_affiliate_in_general_queue_still_notifies_operator(self):
         self.server.lookup_body = b'{"affiliate_id":"af-recognized","obra_social":"UNMAPPED"}'
         variables = self.identified()
-        self.assertEqual('600', variables['CRM_DEST'])
-        variables['CRM_QUEUE'] = '600'
+        self.assertEqual('600', variables['CALLFLOW_ROUTING_DESTINATION_NUMBER'])
+        variables['CALLFLOW_QUEUE_NAME'] = '600'
         run_agi('answer', self.config, variables=variables)
         self.assertTrue(self.server.received.wait(2))
         self.assertEqual('af-recognized', self.server.notifications[0]['affiliate_id'])
@@ -252,7 +275,7 @@ Local/1002@from-queue/n = crm-user-b
         secrets.write_text('[auth]\nlookup_token = lookup-secret\nnotify_token = notify-secret\n')
         self.config.write_text(self.config.read_text().replace('[crm]', '[crm]\nsecrets_file = ' + str(secrets)))
         variables, _, _, errors = run_agi('identify', self.config, digits=['20123456786'])
-        variables.update(MEMBERINTERFACE='PJSIP/1001', CRM_QUEUE='601')
+        variables.update(MEMBERINTERFACE='PJSIP/1001', CALLFLOW_QUEUE_NAME='601')
         _, _, _, answer_errors = run_agi('answer', self.config, variables=variables)
         self.assertTrue(self.server.received.wait(2))
         self.assertEqual(['Bearer lookup-secret'], self.server.lookup_auth)
@@ -271,8 +294,8 @@ Local/1002@from-queue/n = crm-user-b
         self.server.shutdown()
         self.server.server_close()
         variables, _, elapsed, _ = run_agi('identify', self.config, digits=['20123456786'])
-        self.assertEqual('transport_error', variables['CRM_RESULT'])
-        self.assertEqual('600', variables['CRM_DEST'])
+        self.assertEqual('transport_error', variables['CALLFLOW_ROUTING_STATUS'])
+        self.assertEqual('600', variables['CALLFLOW_ROUTING_DESTINATION_NUMBER'])
         self.assertLess(elapsed, 0.8)
 
     def test_simultaneous_distinct_affiliates_keep_their_own_notice(self):
@@ -283,9 +306,9 @@ Local/1002@from-queue/n = crm-user-b
         def call(index):
             cuil = '20123456786' if index == 0 else '27234567891'
             variables, _, _, _ = run_agi('identify', self.config, digits=[cuil], uniqueid='1700000000.' + str(index))
-            variables.update(MEMBERINTERFACE='PJSIP/1001', CRM_QUEUE='601')
+            variables.update(MEMBERINTERFACE='PJSIP/1001', CALLFLOW_QUEUE_NAME='601')
             run_agi('answer', self.config, variables=variables)
-            return variables['CRM_INTERACTION_ID'], 'af-demo-1' if index == 0 else 'af-demo-2'
+            return variables['CALLFLOW_CALL_INTERACTION_ID'], 'af-demo-1' if index == 0 else 'af-demo-2'
         with ThreadPoolExecutor(max_workers=2) as pool:
             expected = dict(pool.map(call, range(2)))
         deadline = time.monotonic() + 3
@@ -299,28 +322,28 @@ Local/1002@from-queue/n = crm-user-b
             digits=['20123456786'], hangup_after=0.3)
         self.assertLess(elapsed, 0.8)
         self.assertIn('caller_hangup', errors)
-        self.assertEqual('', variables['CRM_AFFILIATE_ID'])
+        self.assertEqual('', variables['CALLFLOW_CRM_AFFILIATE_ID'])
         self.assertEqual([], self.server.notifications)
 
     def test_configured_star_terminator_is_accepted_by_the_ivr(self):
         self.config.write_text(self.config.read_text().replace('attempts = 2', 'attempts = 2\nterminator = *'))
         variables, _, _, _ = run_agi('identify', self.config, digits=['20123456786*'])
-        self.assertEqual('found', variables['CRM_RESULT'])
+        self.assertEqual('found', variables['CALLFLOW_ROUTING_STATUS'])
 
     def test_invalid_modulo_11_check_digit_does_not_lookup_an_affiliate(self):
         self.config.write_text(self.config.read_text().replace('validate_checksum = no', 'validate_checksum = yes'))
         variables, _, _, errors = run_agi('identify', self.config, digits=['20000000019', ''])
-        self.assertEqual('invalid_cuil', variables['CRM_RESULT'])
-        self.assertEqual('600', variables['CRM_DEST'])
+        self.assertEqual('invalid_cuil', variables['CALLFLOW_ROUTING_STATUS'])
+        self.assertEqual('600', variables['CALLFLOW_ROUTING_DESTINATION_NUMBER'])
         self.assertEqual([], self.server.requests)
         self.assertNotIn('20000000019', errors)
 
     def test_affiliate_is_routed_and_answer_notifies_the_correct_operator(self):
         variables, commands, _, _ = run_agi('identify', self.config, digits=['20123456786'])
-        self.assertEqual(('queue', '601'), (variables['CRM_DEST_TYPE'], variables['CRM_DEST']))
+        self.assertEqual(('queue', '601'), (variables['CALLFLOW_ROUTING_DESTINATION_TYPE'], variables['CALLFLOW_ROUTING_DESTINATION_NUMBER']))
         self.assertEqual([{'cuil': ['20123456786']}], self.server.requests)
         self.assertEqual([], self.server.notifications, 'lookup must not imply an answer')
-        variables.update(MEMBERINTERFACE='PJSIP/1001', MEMBERNAME='Operador A', CRM_QUEUE='601')
+        variables.update(MEMBERINTERFACE='PJSIP/1001', MEMBERNAME='Operador A', CALLFLOW_QUEUE_NAME='601')
         _, _, _, _ = run_agi('answer', self.config, variables=variables)
         self.assertTrue(self.server.received.wait(3), 'detached emitter must deliver the HTTP request')
         notice = self.server.notifications[0]
@@ -329,6 +352,6 @@ Local/1002@from-queue/n = crm-user-b
         self.assertEqual('PJSIP/1001', notice['member_interface'])
         self.assertEqual('1001', notice['extension'])
         self.assertEqual('601', notice['queue'])
-        self.assertEqual(variables['CRM_INTERACTION_ID'], notice['interaction_id'])
+        self.assertEqual(variables['CALLFLOW_CALL_INTERACTION_ID'], notice['interaction_id'])
         self.assertNotEqual(notice['interaction_id'], notice['event_id'])
         self.assertNotIn('20123456786', json.dumps(notice))

@@ -1,7 +1,7 @@
 Name:           issabel-crm
-Version:        0.1.0
+Version:        0.1.1
 Release:        1%{?dist}
-Summary:        Stateless IVR and Queue AGI integration with a third-party CRM
+Summary:        CallFlow Hooks - affiliate CRM routing and Queue answer hooks
 License:        Unspecified
 Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch
@@ -42,5 +42,8 @@ fi
 %ghost /etc/asterisk/issabel_crm_extensions.conf
 
 %changelog
+* Thu Oct 08 2026 Jonatan Garbuyo - 0.1.1-1
+- Name the feature CallFlow Hooks and clarify the channel-variable contract.
+
 * Thu Oct 08 2026 Jonatan Garbuyo - 0.1.0-1
 - Initial laboratory addon.

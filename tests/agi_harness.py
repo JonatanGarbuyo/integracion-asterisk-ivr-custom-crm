@@ -16,7 +16,7 @@ def run_agi(mode, config, variables=None, digits=None, uniqueid='1700000000.1', 
     digits = list(digits or [])
     commands = []
     digit_stream = []
-    env = dict(os.environ, ISSABEL_CRM_CONFIG=str(config), PYTHONPATH=str(ROOT))
+    env = dict(os.environ, CALLFLOW_HOOKS_CONFIG_FILE=str(config), PYTHONPATH=str(ROOT))
     command = [sys.executable, '-m', 'issabel_crm', mode]
     if not export_pythonpath:
         env.pop('PYTHONPATH', None)

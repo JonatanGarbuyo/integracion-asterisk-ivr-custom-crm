@@ -24,7 +24,7 @@ def main():
     for folder in ('issabel_crm', 'bin', 'config', 'tools', 'lab', 'tests', 'packaging'):
         files += [p for p in (ROOT / folder).rglob('*')
                   if p.is_file() and '__pycache__' not in p.parts and p.suffix != '.pyc']
-    files += [ROOT / 'README.md']
+    files += [ROOT / 'README.md', ROOT / 'docs/naming.md']
     files += list((ROOT / 'docs/testing').glob('*.md'))
     with open(str(archive), 'wb') as output:
         with gzip.GzipFile(filename='', fileobj=output, mode='wb', mtime=0) as compressed:

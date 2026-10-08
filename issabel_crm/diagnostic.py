@@ -4,7 +4,7 @@ import syslog
 
 
 def record(outcome, interaction_id='', stderr=True, destination=''):
-    fields = {'component': 'issabel-crm', 'outcome': outcome, 'interaction_id': interaction_id}
+    fields = {'component': 'callflow-hooks', 'outcome': outcome, 'interaction_id': interaction_id}
     if destination:
         fields['destination'] = destination
     message = json.dumps(fields)

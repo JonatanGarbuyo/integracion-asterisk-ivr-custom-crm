@@ -23,7 +23,7 @@ def identifier(value):
 
 
 def read_config(path=None, text=None):
-    path = path or os.environ.get('ISSABEL_CRM_CONFIG', DEFAULT_CONFIG)
+    path = path or os.environ.get('CALLFLOW_HOOKS_CONFIG_FILE') or os.environ.get('ISSABEL_CRM_CONFIG', DEFAULT_CONFIG)
     parser = configparser.ConfigParser(interpolation=None, inline_comment_prefixes=None)
     parser.optionxform = str
     try:
@@ -86,7 +86,7 @@ def read_config(path=None, text=None):
             config['agents'][member] = {'crm_user_id': parts[0]}
             if len(parts) == 2:
                 config['agents'][member]['extension'] = parts[1]
-        config['agent_map_revision'] = hashlib.sha256(
+        config['queue_member_crm_map_hash'] = hashlib.sha256(
             json.dumps(config['agents'], sort_keys=True).encode('utf-8')).hexdigest()
         secrets_path = crm.get('secrets_file', '')
         if secrets_path:

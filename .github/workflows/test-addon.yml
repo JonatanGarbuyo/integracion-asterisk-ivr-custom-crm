@@ -39,7 +39,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y rpm
           mkdir -p "$PWD/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
-          cp dist/issabel-crm-0.1.0.tar.gz rpmbuild/SOURCES/
+          cp dist/issabel-crm-0.1.1.tar.gz rpmbuild/SOURCES/
           rpmbuild -bb --nodeps --define "_topdir $PWD/rpmbuild" --define '_binary_payload w9.gzdio' packaging/issabel-crm.spec
           cp rpmbuild/RPMS/noarch/*.rpm dist/
       - uses: actions/upload-artifact@v4

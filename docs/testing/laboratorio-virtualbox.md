@@ -58,7 +58,7 @@ sudo python3 /usr/lib/issabel-crm/addon.py apply --config /etc/asterisk/issabel_
 
 El instalador conserva los `.conf` existentes y agrega sólo un bloque identificado con `#include issabel_crm_extensions.conf` a `extensions_custom.conf`. No cambia `extensions_additional.conf`, definiciones generadas de cola, troncales ni base de datos de Issabel. No crea colas, internos ni una entrada de menú web. El addon inicial es un paquete de backend con destino custom; el formulario sigue en el ticket opcional.
 
-La receta RPM está en `packaging/issabel-crm.spec`; CI construye el RPM y tarball. En un checkout local, `python3 tools/build.py` genera `dist/issabel-crm-0.1.0.tar.gz` y checksum. Si se instala RPM, administrarlo siempre con RPM: su script postinstalación agrega el mismo include y permisos. No mezclar la desinstalación manual con una instalación administrada por RPM.
+La receta RPM está en `packaging/issabel-crm.spec`; CI construye el RPM y tarball. En un checkout local, `python3 tools/build.py` genera `dist/issabel-crm-0.1.1.tar.gz` y checksum. Si se instala RPM, administrarlo siempre con RPM: su script postinstalación agrega el mismo include y permisos. No mezclar la desinstalación manual con una instalación administrada por RPM.
 
 ### Preparar Issabel
 

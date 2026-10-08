@@ -1,8 +1,10 @@
-# Integración Asterisk IVR ↔ CRM
+# CallFlow Hooks
 
-Addon de backend: identificación por CUIL, GET acotado para obtener obra social, ruta a cola/0800 y POST stateless del miembro que respondió. Dos AGI locales, sin listener AMI, base de datos de llamadas ni reintentos durables. Python 3.6+, sólo biblioteca estándar.
+**Perfil actual: Afiliados CRM.** Addon de backend: identificación por CUIL, GET acotado para obtener obra social, ruta a cola/0800 y POST stateless del miembro que respondió. Dos AGI locales, sin listener AMI, base de datos de llamadas ni reintentos durables. Python 3.6+, sólo biblioteca estándar.
 
 **Estado:** primera versión implementada para desarrollo con mocks. Soporte objetivo Issabel 4/Asterisk 16 e Issabel 5/Asterisk 18; validación instalada, audio, troncal y CRM real pendientes. Los tiempos y políticas incluidos son defaults de laboratorio. El formulario web y DNI siguen como ampliaciones opcionales.
+
+Nombre de la feature y namespace: **CallFlow Hooks**, `CALLFLOW_`. [Contrato de nombres y variables](docs/naming.md). El paquete y las rutas de instalación de esta entrega conservan el identificador técnico `issabel-crm`.
 
 ## Desarrollo sin PBX
 

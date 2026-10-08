@@ -3,7 +3,7 @@ import sys
 
 from .agi import AGI, Hangup
 from .diagnostic import record
-from .flow import answer, identify
+from .flow import notify_crm_of_queue_member_answer, route_affiliate_call
 
 
 def on_hangup(signum, frame):
@@ -14,7 +14,7 @@ def main():
     signal.signal(signal.SIGHUP, on_hangup)
     try:
         agi = AGI()
-        {'identify': identify, 'answer': answer}[sys.argv[1]](agi)
+        {'identify': route_affiliate_call, 'answer': notify_crm_of_queue_member_answer}[sys.argv[1]](agi)
     except Hangup:
         record('caller_hangup')
     except Exception:
