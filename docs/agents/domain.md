@@ -1,0 +1,7 @@
+# Domain docs
+
+Contexto único: atención telefónica de afiliados.
+
+`CONTEXT.md` contiene exclusivamente vocabulario del dominio. La especificación y las issues conservan las decisiones de comportamiento y de implementación; la investigación documenta los mecanismos de Asterisk.
+
+Al resolver un término, actualizar el glosario en el mismo cambio. Crear ADR sólo para decisiones difíciles de revertir, sorprendentes sin contexto y surgidas de una comparación real de alternativas. Aún no se ha registrado ninguna ADR.

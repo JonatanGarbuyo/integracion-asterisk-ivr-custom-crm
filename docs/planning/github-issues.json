@@ -1,0 +1,173 @@
+{
+  "repository": "JonatanGarbuyo/integracion-asterisk-ivr-custom-crm",
+  "issues": [
+    {
+      "key": "map",
+      "number": 1,
+      "title": "Mapa Wayfinder: integración IVR y colas Issabel ↔ CRM",
+      "parent": null,
+      "blocked_by": []
+    },
+    {
+      "key": "spec",
+      "number": 2,
+      "title": "Especificación: integración IVR y colas Issabel ↔ CRM",
+      "parent": null,
+      "blocked_by": []
+    },
+    {
+      "key": "decision-01",
+      "number": 3,
+      "title": "Mecanismos de Asterisk para consulta y aviso al atender",
+      "parent": 1,
+      "blocked_by": []
+    },
+    {
+      "key": "decision-02",
+      "number": 4,
+      "title": "Inventario de la PBX y de su entorno de prueba",
+      "parent": 1,
+      "blocked_by": []
+    },
+    {
+      "key": "decision-03",
+      "number": 5,
+      "title": "Capacidades de consulta y presentación de fichas del CRM",
+      "parent": 1,
+      "blocked_by": []
+    },
+    {
+      "key": "decision-04",
+      "number": 6,
+      "title": "Identificación del afiliado y reglas de destino",
+      "parent": 1,
+      "blocked_by": [
+        5
+      ]
+    },
+    {
+      "key": "decision-05",
+      "number": 7,
+      "title": "Espera máxima y continuidad ante fallas",
+      "parent": 1,
+      "blocked_by": []
+    },
+    {
+      "key": "decision-06",
+      "number": 8,
+      "title": "Asociación entre llamada, agente y ficha del CRM",
+      "parent": 1,
+      "blocked_by": [
+        3,
+        5
+      ]
+    },
+    {
+      "key": "decision-07",
+      "number": 9,
+      "title": "Arquitectura y puntos de extensión compatibles con Issabel",
+      "parent": 1,
+      "blocked_by": [
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "key": "decision-08",
+      "number": 10,
+      "title": "Criterios de aceptación y despliegue reversible",
+      "parent": 1,
+      "blocked_by": [
+        9
+      ]
+    },
+    {
+      "key": "implementation-01",
+      "number": 11,
+      "title": "Primera llamada completa con CRM simulado",
+      "parent": 2,
+      "blocked_by": []
+    },
+    {
+      "key": "implementation-02",
+      "number": 12,
+      "title": "Cambiar destinos y operadores desde configuración",
+      "parent": 2,
+      "blocked_by": [
+        11
+      ]
+    },
+    {
+      "key": "implementation-03",
+      "number": 13,
+      "title": "Continuar atención ante identificación o consulta fallida",
+      "parent": 2,
+      "blocked_by": [
+        12
+      ]
+    },
+    {
+      "key": "implementation-04",
+      "number": 14,
+      "title": "Derivar una obra social a un 0800",
+      "parent": 2,
+      "blocked_by": [
+        12
+      ]
+    },
+    {
+      "key": "implementation-05",
+      "number": 15,
+      "title": "Avisos aislados en llamadas simultáneas y ante fallas",
+      "parent": 2,
+      "blocked_by": [
+        12
+      ]
+    },
+    {
+      "key": "implementation-06",
+      "number": 16,
+      "title": "Instalar y conservar el flujo en Issabel 4 y 5",
+      "parent": 2,
+      "blocked_by": [
+        12
+      ]
+    },
+    {
+      "key": "implementation-07",
+      "number": 17,
+      "title": "Abrir la ficha en el CRM real",
+      "parent": 2,
+      "blocked_by": [
+        12
+      ]
+    },
+    {
+      "key": "implementation-08",
+      "number": 18,
+      "title": "Validar la versión completa y preparar piloto reversible",
+      "parent": 2,
+      "blocked_by": [
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    {
+      "key": "implementation-09",
+      "number": 19,
+      "title": "Formulario de configuración en Issabel",
+      "parent": 2,
+      "blocked_by": [
+        12,
+        16
+      ]
+    }
+  ]
+}

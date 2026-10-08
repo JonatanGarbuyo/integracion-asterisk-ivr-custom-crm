@@ -1,0 +1,135 @@
+name: Sincronizar relaciones de planificación
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - docs/planning/github-issues.json
+      - .github/workflows/sync-planning.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: planning-relations
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Vincular sub-issues y bloqueos nativos
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          import base64
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          
+          repository = os.environ["GITHUB_REPOSITORY"]
+          api_root = os.environ["GITHUB_API_URL"].rstrip("/")
+          headers = {
+              "Authorization": "Bearer " + os.environ["GITHUB_TOKEN"],
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2026-03-10",
+          }
+          
+          
+          def api(method, path, payload=None):
+              data = None if payload is None else json.dumps(payload).encode()
+              request = urllib.request.Request(api_root + path, data=data, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      raw = response.read()
+                      result = json.loads(raw) if raw else None
+              except urllib.error.HTTPError as error:
+                  raise RuntimeError(f"GitHub returned {error.code} for {method} {path}") from None
+              if method != "GET":
+                  time.sleep(1)
+              return result
+          
+          
+          def list_all(path):
+              result = []
+              page = 1
+              while True:
+                  values = api("GET", path + f"?per_page=100&page={page}")
+                  result.extend(values)
+                  if len(values) < 100:
+                      return result
+                  page += 1
+          
+          
+          prefix = "/repos/" + repository
+          ref = urllib.parse.quote(os.environ["GITHUB_SHA"], safe="")
+          file = api("GET", prefix + "/contents/docs/planning/github-issues.json?ref=" + ref)
+          manifest = json.loads(base64.b64decode(file["content"]))
+          if manifest["repository"] != repository:
+              raise RuntimeError("The planning manifest belongs to another repository")
+          rows = manifest["issues"]
+          if len({row["number"] for row in rows}) != len(rows):
+              raise RuntimeError("Duplicate issue numbers in planning manifest")
+          numbers = {row["number"] for row in rows}
+          for row in rows:
+              if row.get("parent") is not None and row["parent"] not in numbers:
+                  raise RuntimeError("Unknown parent in planning manifest")
+              if any(number not in numbers or number == row["number"] for number in row["blocked_by"]):
+                  raise RuntimeError("Invalid blocker in planning manifest")
+          
+          dependencies = {row["number"]: row["blocked_by"] for row in rows}
+          visited = set()
+          
+          def check_cycle(number, stack):
+              if number in stack:
+                  raise RuntimeError("Dependency cycle in planning manifest")
+              if number in visited:
+                  return
+              for blocker in dependencies[number]:
+                  check_cycle(blocker, stack | {number})
+              visited.add(number)
+          
+          for number in numbers:
+              check_cycle(number, set())
+          
+          issues = {number: api("GET", prefix + f"/issues/{number}") for number in sorted(numbers)}
+          children_by_parent = {}
+          links_added = 0
+          for row in rows:
+              parent = row.get("parent")
+              if parent is None:
+                  continue
+              if parent not in children_by_parent:
+                  children_by_parent[parent] = {issue["id"] for issue in list_all(prefix + f"/issues/{parent}/sub_issues")}
+              child_id = issues[row["number"]]["id"]
+              if child_id not in children_by_parent[parent]:
+                  api("POST", prefix + f"/issues/{parent}/sub_issues", {"sub_issue_id": child_id})
+                  children_by_parent[parent].add(child_id)
+                  links_added += 1
+          
+          blockers_added = 0
+          for row in rows:
+              if not row["blocked_by"]:
+                  continue
+              path = prefix + f"/issues/{row['number']}/dependencies/blocked_by"
+              existing = {issue["id"] for issue in list_all(path)}
+              for number in row["blocked_by"]:
+                  blocker_id = issues[number]["id"]
+                  if blocker_id not in existing:
+                      api("POST", path, {"issue_id": blocker_id})
+                      existing.add(blocker_id)
+                      blockers_added += 1
+          
+          summary = f"Planning synchronized: {links_added} sub-issues and {blockers_added} dependencies added."
+          print(summary)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as output:
+              output.write(summary + "\n")
+          PYTHON
