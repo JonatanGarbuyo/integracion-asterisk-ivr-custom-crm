@@ -4,14 +4,14 @@
     {
       "key": "map",
       "number": 1,
-      "title": "Mapa Wayfinder: integración IVR y colas Issabel ↔ CRM",
+      "title": "Mapa Wayfinder: CallFlow Hooks — addon extensible para Issabel",
       "parent": null,
       "blocked_by": []
     },
     {
       "key": "spec",
       "number": 2,
-      "title": "Especificación: integración IVR y colas Issabel ↔ CRM",
+      "title": "Especificación: CallFlow Hooks — addon extensible para Issabel",
       "parent": null,
       "blocked_by": []
     },
@@ -167,6 +167,90 @@
       "blocked_by": [
         12,
         16
+      ]
+    },
+    {
+      "key": "callflow-implementation-01",
+      "number": 21,
+      "title": "Perfil genérico administrable desde Issabel",
+      "parent": 2,
+      "blocked_by": []
+    },
+    {
+      "key": "callflow-implementation-02",
+      "number": 22,
+      "title": "Afiliados CRM: consulta y selección de destino",
+      "parent": 2,
+      "blocked_by": [
+        21
+      ]
+    },
+    {
+      "key": "callflow-implementation-03",
+      "number": 23,
+      "title": "Atención en cola y acciones externas opcionales",
+      "parent": 2,
+      "blocked_by": [
+        22
+      ]
+    },
+    {
+      "key": "callflow-implementation-04",
+      "number": 24,
+      "title": "Aplicar cambios sin cruzar llamadas o usuarios",
+      "parent": 2,
+      "blocked_by": [
+        23
+      ]
+    },
+    {
+      "key": "callflow-implementation-05",
+      "number": 25,
+      "title": "Fallas y concurrencia de extensiones",
+      "parent": 2,
+      "blocked_by": [
+        23
+      ]
+    },
+    {
+      "key": "callflow-implementation-06",
+      "number": 26,
+      "title": "Otro rubro y segundo adaptador sin cambios del núcleo",
+      "parent": 2,
+      "blocked_by": [
+        23
+      ]
+    },
+    {
+      "key": "callflow-implementation-07",
+      "number": 27,
+      "title": "Addon completo en Issabel 4 y 5",
+      "parent": 2,
+      "blocked_by": [
+        24,
+        25,
+        26,
+        4
+      ]
+    },
+    {
+      "key": "callflow-implementation-08",
+      "number": 28,
+      "title": "Adaptador del CRM real y apertura de ficha",
+      "parent": 2,
+      "blocked_by": [
+        23,
+        5
+      ]
+    },
+    {
+      "key": "callflow-implementation-09",
+      "number": 29,
+      "title": "Aceptación completa y preparación de piloto",
+      "parent": 2,
+      "blocked_by": [
+        27,
+        28
       ]
     }
   ]
