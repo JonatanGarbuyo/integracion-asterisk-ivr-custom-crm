@@ -6,6 +6,7 @@ if (!defined('CFH_NATIVE_AUTHORIZED') && (!isset($_SESSION['AMP_user']) || !is_o
     return;
 }
 $callflowhooks_form_url = defined('CFH_NATIVE_AUTHORIZED') ? 'index.php?menu=callflowhooks' : 'config.php?display=callflowhooks';
+$callflowhooks_pbx_configuration_url = defined('CFH_NATIVE_AUTHORIZED') ? '/index.php?menu=pbxadmin' : '/admin/';
 echo '<h2>CallFlow Hooks</h2><p>Perfiles de handlers desde IVR</p>';
 try {
     if (!isset($_SESSION['callflowhooks_csrf'])) {
@@ -48,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $configuration = callflowhooks_save($submitted, isset($_POST['configuration_version']) ? $_POST['configuration_version'] : '');
             unset($_SESSION['callflowhooks_draft']);
             $selectedId = $submitted['identifier'];
-            echo '<p>Perfil guardado. Seleccionar su destino en el IVR. Aplicar configuración en <a href="/admin/">Configuración PBX</a>.</p>';
+            echo '<p>Perfil guardado. En el IVR, seleccionar Custom Destinations → CallFlow Hooks: '.callflowhooks_escape($selectedId).'. Aplicar configuración en <a href="'.$callflowhooks_pbx_configuration_url.'">Configuración PBX</a>.</p>';
         }
     } catch (Exception $error) {
         $message = $error instanceof callflowhooks_backend_error ? $error->getMessage() : 'No se pudo completar la operación PBX. Revisar el registro del servidor.';

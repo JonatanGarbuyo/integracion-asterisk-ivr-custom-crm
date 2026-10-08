@@ -13,7 +13,7 @@ Crear ambas VM en VirtualBox sin conectarlas a la troncal del cliente. Usar red 
 
 ## Instalar directamente desde el repositorio
 
-La versión 0.2.2 instala un módulo nativo **PBX → CallFlow Hooks** y el puente IssabelPBX. No requiere transferir un `.tgz`. Usar únicamente la VM de laboratorio y conservar el snapshot anterior.
+La versión 0.2.3 instala un módulo nativo **PBX → CallFlow Hooks** y el puente IssabelPBX. No requiere transferir un `.tgz`. Usar únicamente la VM de laboratorio y conservar el snapshot anterior.
 
 Para construir desde el repo se requieren `git`, `rpm-build`, Python >=3.6, PHP >=5.4 y las herramientas habituales de Issabel. Si yum sigue consultando mirrorlist retirados de CentOS 7, usar la configuración temporal Vault ya utilizada para instalar Python; el instalador no modifica repositorios ni hace una actualización global.
 
@@ -35,11 +35,11 @@ Para preparar el RPM sin instalarlo:
 
 ### Descarga directa sin Git
 
-La prerelease de laboratorio `v0.2.2` distribuye el RPM y `manifest.json`. Para descargar e instalar sin Git ni herramientas de compilación:
+La prerelease de laboratorio `v0.2.3` distribuye el RPM y `manifest.json`. Para descargar e instalar sin Git ni herramientas de compilación:
 
 ```bash
-curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.2/tools/install.py -o /tmp/callflow-install.py
-sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.2
+curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.3/tools/install.py -o /tmp/callflow-install.py
+sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.3
 ```
 
 Esta modalidad requiere `rpm2cpio` y `cpio`, pero no `git` ni `rpmbuild` en la PBX. El workflow publica una prerelease de laboratorio después de las pruebas y la construcción del RPM, desde un tag coincidente o una rama `release/callflow-hooks-vX.Y.Z`. No certifica la instalación efectiva en la VM. El checksum detecta corrupción y se contrasta además la identidad del RPM; no equivale por sí solo a una firma de un editor independiente.
@@ -62,10 +62,11 @@ El `.tgz` de `tools/build.py` sigue siendo únicamente un artefacto del puente I
 
 ## Llamada de prueba y desactivación
 
-1. Crear dos perfiles con la extensión `example` y destinos de internos de laboratorio diferentes. Seleccionarlos desde dos opciones del IVR normal y aplicar configuración.
-2. Llamar a ambas opciones. Registrar interno alcanzado y variables `CALLFLOW_*` sin datos personales. Probar `none`, CallerID, DTMF y una variable de canal preparada por un contexto propio.
-3. Deshabilitar un perfil desde el formulario. Las nuevas ejecuciones usan su contingencia; el destino sigue existiendo. Rehabilitar y repetir.
-4. Para quitar el módulo, retirar primero referencias desde IVR/rutas, aplicar y esperar a que terminen llamadas en curso. Ejecutar `sudo rpm -e issabel-callflow-hooks`. El paquete rechaza referencias activas a destinos propios y llamadas en curso; retira el puente, regenera PBX y elimina su menú/ACL. Esa regeneración aplica los cambios PBX pendientes, por lo que deben revisarse antes de quitarlo. Si falla la recarga se conserva el código y se puede repetir tras corregir. Se borran únicamente destinos marcados como propios; se conserva .conf para reinstalar.
-5. Recuperar el snapshot de VM para la reversión completa del laboratorio. No usar desinstalación con llamadas activas como mecanismo de reversión de producción.
+1. Crear dos perfiles con la extensión `example` y destinos de internos de laboratorio diferentes. En **PBX → Configuración PBX → IVR**, editar un IVR habitual y elegir para cada opción **Custom Destinations → CallFlow Hooks: <identificador>**. El addon crea esos destinos automáticamente; no cargarlos a mano. Si no aparecen, volver al addon, usar **Sincronizar destinos de .conf** y recargar la configuración PBX.
+2. Guardar el IVR y usar **Aplicar configuración**. Si se prueba mediante una llamada entrante, seleccionar ese IVR como destino en **Inbound Routes**. El perfil ya guardado por el usuario, `example`, produce `callflow-profile-example,s,1`; con `input_source=none` y `next_destination=ext-local,101,1`, una ejecución correcta continúa al interno 101. El handler de ejemplo agrega `greeting` al contexto; no reproduce el texto como audio.
+3. Llamar a ambas opciones. Registrar interno alcanzado y variables `CALLFLOW_*` sin datos personales. Probar `none`, CallerID, DTMF y una variable de canal preparada por un contexto propio.
+4. Deshabilitar un perfil desde el formulario. Las nuevas ejecuciones usan su contingencia; el destino sigue existiendo. Rehabilitar y repetir.
+5. Para quitar el módulo, retirar primero referencias desde IVR/rutas, aplicar y esperar a que terminen llamadas en curso. Ejecutar `sudo rpm -e issabel-callflow-hooks`. El paquete rechaza referencias activas a destinos propios y llamadas en curso; retira el puente, regenera PBX y elimina su menú/ACL. Esa regeneración aplica los cambios PBX pendientes, por lo que deben revisarse antes de quitarlo. Si falla la recarga se conserva el código y se puede repetir tras corregir. Se borran únicamente destinos marcados como propios; se conserva .conf para reinstalar.
+6. Recuperar el snapshot de VM para la reversión completa del laboratorio. No usar desinstalación con llamadas activas como mecanismo de reversión de producción.
 
-No se han probado estos pasos en una VM Issabel durante esta entrega. Un CI verde no confirma audio, permisos SELinux, menú de la distribución, cola ni proveedor real.
+El usuario confirmó instalación, menú/formulario nativo y guardado del perfil `example` en Issabel 4 con 0.2.2. Aplicar, llamadas y audio siguen pendientes. Un CI verde no confirma audio, permisos SELinux, menú de la distribución, cola ni proveedor real.
