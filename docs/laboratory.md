@@ -13,7 +13,7 @@ Crear ambas VM en VirtualBox sin conectarlas a la troncal del cliente. Usar red 
 
 ## Instalar directamente desde el repositorio
 
-La versión 0.2.1 instala un módulo nativo **PBX → CallFlow Hooks** y el puente IssabelPBX. No requiere transferir un `.tgz`. Usar únicamente la VM de laboratorio y conservar el snapshot anterior.
+La versión 0.2.2 instala un módulo nativo **PBX → CallFlow Hooks** y el puente IssabelPBX. No requiere transferir un `.tgz`. Usar únicamente la VM de laboratorio y conservar el snapshot anterior.
 
 Para construir desde el repo se requieren `git`, `rpm-build`, Python >=3.6, PHP >=5.4 y las herramientas habituales de Issabel. Si yum sigue consultando mirrorlist retirados de CentOS 7, usar la configuración temporal Vault ya utilizada para instalar Python; el instalador no modifica repositorios ni hace una actualización global.
 
@@ -35,11 +35,11 @@ Para preparar el RPM sin instalarlo:
 
 ### Descarga directa sin Git
 
-La prerelease de laboratorio `v0.2.1` distribuye el RPM y `manifest.json`. Para descargar e instalar sin Git ni herramientas de compilación:
+La prerelease de laboratorio `v0.2.2` distribuye el RPM y `manifest.json`. Para descargar e instalar sin Git ni herramientas de compilación:
 
 ```bash
-curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.1/tools/install.py -o /tmp/callflow-install.py
-sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.1
+curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.2/tools/install.py -o /tmp/callflow-install.py
+sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.2
 ```
 
 Esta modalidad requiere `rpm2cpio` y `cpio`, pero no `git` ni `rpmbuild` en la PBX. El workflow publica una prerelease de laboratorio después de las pruebas y la construcción del RPM, desde un tag coincidente o una rama `release/callflow-hooks-vX.Y.Z`. No certifica la instalación efectiva en la VM. El checksum detecta corrupción y se contrasta además la identidad del RPM; no equivale por sí solo a una firma de un editor independiente.

@@ -15,8 +15,8 @@ DESTINATION = re.compile(r'^[A-Za-z0-9_-]{1,80},[A-Za-z0-9_*#-]{1,80},[1-9][0-9]
 VARIABLE = re.compile(r'^[A-Za-z][A-Za-z0-9_]{0,79}$')
 CORE_FIELDS = {
     'enabled': {'type': 'boolean', 'label': 'Habilitado', 'default': True},
-    'next_destination': {'type': 'string', 'label': 'Destino siguiente (contexto,extensión,prioridad)', 'required': True, 'max_length': 170},
-    'fallback_destination': {'type': 'string', 'label': 'Destino de contingencia', 'required': True, 'max_length': 170},
+    'next_destination': {'type': 'string', 'label': 'Destino siguiente (contexto,extensión,prioridad)', 'required': True, 'max_length': 170, 'help': 'Ejemplo para un interno: ext-local,201,1.'},
+    'fallback_destination': {'type': 'string', 'label': 'Destino de contingencia', 'required': True, 'max_length': 170, 'help': 'Ejemplo para un interno: ext-local,202,1.'},
     'execution_budget_ms': {'type': 'integer', 'label': 'Límite del handler (ms)', 'default': 1000, 'minimum': 50, 'maximum': 5000},
     'input_source': {'type': 'choice', 'label': 'Fuente de entrada', 'default': 'none', 'options': ['none', 'dtmf', 'callerid', 'channel']},
     'input_variable': {'type': 'string', 'label': 'Variable de entrada del canal', 'default': '', 'max_length': 80},
@@ -27,10 +27,13 @@ CORE_FIELDS = {
 
 
 class ConfigurationError(ValueError):
-    pass
+    def __init__(self, message, field=None, code='validation_error'):
+        super().__init__(message)
+        self.field = field
+        self.code = code
 
 
-def validate_fields(fields, values):
+def validate_fields(fields, values, prefix=''):
     if not isinstance(values, dict) or set(values) - set(fields):
         raise ConfigurationError('Campos desconocidos')
     result = {}
@@ -39,19 +42,19 @@ def validate_fields(fields, values):
         kind = field['type']
         if kind in ('string', 'secret', 'choice'):
             if not isinstance(value, str) or len(value) > field.get('max_length', 2000):
-                raise ConfigurationError('Valor inválido: ' + name)
+                raise ConfigurationError('Ingresar texto de hasta {} caracteres.'.format(field.get('max_length', 2000)), prefix+name)
             if field.get('required') and not value:
-                raise ConfigurationError('Campo requerido: ' + name)
+                raise ConfigurationError('Campo obligatorio.', prefix+name)
             if 'pattern' in field and not re.fullmatch(field['pattern'], value):
-                raise ConfigurationError('Formato inválido: ' + name)
+                raise ConfigurationError('El formato no cumple el esquema del campo.', prefix+name)
             if kind == 'choice' and value not in field['options']:
-                raise ConfigurationError('Opción inválida: ' + name)
+                raise ConfigurationError('Seleccionar una opción válida.', prefix+name)
         elif kind == 'integer':
             if type(value) is not int or not field.get('minimum', -2147483648) <= value <= field.get('maximum', 2147483647):
-                raise ConfigurationError('Número inválido: ' + name)
+                raise ConfigurationError('Ingresar un número entero entre {} y {}.'.format(field.get('minimum', -2147483648), field.get('maximum', 2147483647)), prefix+name)
         elif kind == 'boolean':
             if type(value) is not bool:
-                raise ConfigurationError('Booleano inválido: ' + name)
+                raise ConfigurationError('Seleccionar habilitado o deshabilitado.', prefix+name)
         else:
             raise ConfigurationError('Tipo de campo no soportado')
         result[name] = value
@@ -88,21 +91,21 @@ class Configuration:
             raise ConfigurationError('Perfil inválido')
         identifier = profile.get('identifier', '')
         if not isinstance(identifier, str) or not IDENTIFIER.fullmatch(identifier):
-            raise ConfigurationError('Identificador de perfil inválido')
+            raise ConfigurationError('Usar una letra minúscula inicial, letras minúsculas, dígitos, guion o guion bajo; máximo 40 caracteres.', 'identifier')
         extension = profile.get('extension')
         if extension not in self.catalog:
-            raise ConfigurationError('Extensión desconocida')
+            raise ConfigurationError('Seleccionar una extensión instalada.', 'extension')
         normalized = validate_fields(CORE_FIELDS, {k: v for k, v in profile.items() if k in CORE_FIELDS})
         for key in ('next_destination', 'fallback_destination'):
             if not DESTINATION.fullmatch(normalized[key]) or normalized[key].startswith('callflow-profile-'):
-                raise ConfigurationError('Destino inválido: ' + key)
+                raise ConfigurationError('Ingresar contexto,extensión,prioridad; por ejemplo ext-local,201,1.', key)
         if normalized['input_source'] == 'channel' and not VARIABLE.fullmatch(normalized['input_variable']):
-            raise ConfigurationError('Variable de entrada inválida')
+            raise ConfigurationError('Ingresar un nombre de variable de canal válido.', 'input_variable')
         prompt = normalized['input_prompt']
         if prompt and (not re.fullmatch(r'[A-Za-z0-9_/-]+', prompt) or '..' in prompt or prompt.startswith('/')):
-            raise ConfigurationError('Audio inválido')
+            raise ConfigurationError('Ingresar un nombre de audio relativo válido.', 'input_prompt')
         normalized.update(identifier=identifier, extension=extension,
-                          settings=validate_fields(self.catalog[extension]['fields'], profile.get('settings', {})))
+                          settings=validate_fields(self.catalog[extension]['fields'], profile.get('settings', {}), 'settings.'))
         return normalized
 
     def read(self):
@@ -154,7 +157,7 @@ class Configuration:
             fcntl.flock(lock, fcntl.LOCK_EX)
             version, profiles = self.read()
             if version != expected_version:
-                raise ConfigurationError('La configuración cambió; recargar el formulario')
+                raise ConfigurationError('La configuración cambió en otra edición; revisar los valores antes de volver a guardar.', code='stale_configuration')
             profile = dict(profile)
             old = profiles.get(profile.get('identifier'))
             if old and old['extension'] == profile.get('extension'):

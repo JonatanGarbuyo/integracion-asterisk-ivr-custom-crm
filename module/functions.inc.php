@@ -1,6 +1,14 @@
 <?php
 if (!defined('ISSABELPBX_IS_AUTH')) { die('No direct script access allowed'); }
 
+class callflowhooks_backend_error extends Exception {
+    public $fields;
+    function __construct($message, $fields = array()) {
+        parent::__construct($message);
+        $this->fields = $fields;
+    }
+}
+
 function callflowhooks_escape($value) {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 }
@@ -19,10 +27,10 @@ function callflowhooks_backend($request) {
     $command = escapeshellarg($python).' '.escapeshellarg(callflowhooks_entry()).
                ' --config '.escapeshellarg($config).' admin';
     $payload = json_encode($request);
-    if ($payload === false || strlen($payload) > 65536) throw new Exception('Solicitud demasiado grande');
+    if ($payload === false || strlen($payload) > 65536) throw new callflowhooks_backend_error('Solicitud demasiado grande');
     $pipes = array();
     $process = proc_open($command, array(0=>array('pipe','r'), 1=>array('pipe','w'), 2=>array('file','/dev/null','a')), $pipes);
-    if (!is_resource($process)) throw new Exception('No se pudo ejecutar el administrador local');
+    if (!is_resource($process)) throw new callflowhooks_backend_error('No se pudo ejecutar el administrador local');
     stream_set_blocking($pipes[0], false);
     stream_set_blocking($pipes[1], false);
     $deadline = microtime(true) + 3;
@@ -47,23 +55,42 @@ function callflowhooks_backend($request) {
     $status = proc_get_status($process);
     if ($status['running']) proc_terminate($process, 9);
     proc_close($process);
-    if (microtime(true) > $deadline || strlen($output) > 262144) throw new Exception('Administrador local fuera de límite');
+    if (microtime(true) > $deadline || strlen($output) > 262144) throw new callflowhooks_backend_error('Administrador local fuera de límite');
     $response = json_decode($output, true);
-    if (!is_array($response) || empty($response['ok'])) throw new Exception('Configuración inválida o no disponible; revisar campos, versión y permisos');
+    if (!is_array($response)) throw new callflowhooks_backend_error('No se recibió una respuesta válida del administrador local.');
+    if (empty($response['ok'])) {
+        $codes = array('validation_error', 'stale_configuration', 'permission_denied', 'io_error', 'configuration_error');
+        $message = 'Configuración inválida o no disponible; revisar campos, versión y permisos';
+        $fields = array();
+        if (isset($response['error_code']) && in_array($response['error_code'], $codes, true) &&
+            isset($response['error']) && is_string($response['error']) && strlen($response['error']) <= 1000) {
+            $message = $response['error'];
+            if (isset($response['field_errors']) && is_array($response['field_errors'])) {
+                foreach ($response['field_errors'] as $name=>$error) {
+                    if (is_string($name) && preg_match('/^(settings\.)?[A-Za-z][A-Za-z0-9_]{0,79}$/D', $name) &&
+                        is_string($error) && strlen($error) <= 1000) $fields[$name] = $error;
+                }
+            }
+        }
+        throw new callflowhooks_backend_error($message, $fields);
+    }
     return $response;
 }
 
 function callflowhooks_register($identifier) {
-    if (!is_string($identifier) || !preg_match('/^[a-z][a-z0-9_-]{0,39}$/D', $identifier)) throw new Exception('Identificador inválido');
-    if (!function_exists('customappsreg_customdests_get')) throw new Exception('Activar Custom Destinations antes de CallFlow Hooks');
+    if (!is_string($identifier) || !preg_match('/^[a-z][a-z0-9_-]{0,39}$/D', $identifier)) {
+        $error = 'Usar una letra minúscula inicial, letras minúsculas, dígitos, guion o guion bajo; máximo 40 caracteres.';
+        throw new callflowhooks_backend_error($error, array('identifier'=>$error));
+    }
+    if (!function_exists('customappsreg_customdests_get')) throw new callflowhooks_backend_error('Activar Custom Destinations antes de CallFlow Hooks');
     $destination = 'callflow-profile-'.$identifier.',s,1';
     $existing = customappsreg_customdests_get($destination);
     if ($existing) {
-        if ($existing['notes'] !== 'Managed by CallFlow Hooks') throw new Exception('Destino ocupado por otra configuración');
+        if ($existing['notes'] !== 'Managed by CallFlow Hooks') throw new callflowhooks_backend_error('Destino ocupado por otra configuración');
         return false;
     }
     if (!customappsreg_customdests_add($destination, 'CallFlow Hooks: '.$identifier, 'Managed by CallFlow Hooks')) {
-        throw new Exception('No se pudo registrar el destino');
+        throw new callflowhooks_backend_error('No se pudo registrar el destino');
     }
     return true;
 }
@@ -115,7 +142,7 @@ function callflowhooks_post_fields($fields, $source) {
     return $values;
 }
 
-function callflowhooks_field($name, $field, $value) {
+function callflowhooks_field($name, $field, $value, $error = '') {
     $name = callflowhooks_escape($name);
     $label = callflowhooks_escape($field['label']);
     echo '<p><label>'.$label.' ';
@@ -131,6 +158,8 @@ function callflowhooks_field($name, $field, $value) {
         $type = $field['type'] === 'secret' ? 'password' : ($field['type'] === 'integer' ? 'number' : 'text');
         // Credentials are write-only in the form. Blank preserves a stored value.
         echo '<input type="'.$type.'" name="'.$name.'" value="'.($type === 'password' ? '' : callflowhooks_escape($value)).'"';
+        if ($error) echo ' aria-invalid="true"';
+        if (!empty($field['required']) && $type !== 'password') echo ' required';
         foreach (array('minimum'=>'min', 'maximum'=>'max', 'max_length'=>'maxlength') as $key=>$attribute) {
             if (isset($field[$key])) echo ' '.$attribute.'="'.(int)$field[$key].'"';
         }
@@ -138,4 +167,25 @@ function callflowhooks_field($name, $field, $value) {
         if ($type === 'password') echo ' (vacío conserva la credencial)';
     }
     echo '</label></p>';
+    if (isset($field['help'])) echo '<p>'.callflowhooks_escape($field['help']).'</p>';
+    if ($error) echo '<p role="alert">'.$label.': '.callflowhooks_escape($error).'</p>';
+}
+
+function callflowhooks_draft_value($value) {
+    return is_scalar($value) && (!is_string($value) || strlen($value) <= 8192) ? $value : '';
+}
+
+function callflowhooks_public_draft($profile, $core, $extension) {
+    $draft = array('identifier'=>callflowhooks_draft_value($profile['identifier']),
+                   'extension'=>$extension['identifier'], 'settings'=>array());
+    foreach ($core as $name=>$field) $draft[$name] = callflowhooks_draft_value($profile[$name]);
+    $secretRetry = false;
+    foreach ($extension['fields'] as $name=>$field) {
+        $value = $profile['settings'][$name];
+        if ($field['type'] === 'secret') {
+            if (is_scalar($value) && (string)$value !== '') $secretRetry = true;
+            $draft['settings'][$name] = '';
+        } else $draft['settings'][$name] = callflowhooks_draft_value($value);
+    }
+    return array('profile'=>$draft, 'secret_retry'=>$secretRetry);
 }

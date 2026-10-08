@@ -1,6 +1,6 @@
 # Perfiles y extensiones
 
-El RPM 0.2.1 registra **PBX → CallFlow Hooks**, `/index.php?menu=callflowhooks`, con sesión, ACL y CSRF nativos de Issabel. La página de IssabelPBX sin embeber sigue disponible como acceso alternativo; el `.tgz` instala únicamente ese puente, no el módulo nativo. La integración instalada se comprobará en la VM según el [laboratorio](laboratory.md). Ambas pantallas guardan en `/etc/asterisk/callflow-hooks/profiles.conf`, la misma fuente que consume el AGI. El listado y el formulario ocultan los campos declarados `secret`; un valor vacío conserva la credencial anterior. Para borrarla expresamente, editar el .conf.
+El RPM 0.2.2 registra **PBX → CallFlow Hooks**, `/index.php?menu=callflowhooks`, con sesión, ACL y CSRF nativos de Issabel. La página de IssabelPBX sin embeber sigue disponible como acceso alternativo; el `.tgz` instala únicamente ese puente, no el módulo nativo. La VM Issabel 4 confirmó instalación y menú nativo con 0.2.1; guardar, aplicar y llamadas se comprobarán según el [laboratorio](laboratory.md). Ambas pantallas guardan en `/etc/asterisk/callflow-hooks/profiles.conf`, la misma fuente que consume el AGI. El listado y el formulario ocultan los campos declarados `secret`; un valor vacío conserva la credencial anterior. Para borrarla expresamente, editar el .conf.
 
 ```ini
 [profile:welcome]
@@ -28,7 +28,11 @@ settings = {"greeting":"Guardia","style":"breve","api_token":""}
 
 Los internos del ejemplo deben sustituirse por destinos existentes en la PBX. El núcleo verifica la sintaxis `contexto,extensión,prioridad` y rechaza expresiones/inyecciones y bucles directos entre perfiles; la existencia y conducta del destino requieren la prueba instalada. La contingencia puede igualar el siguiente destino. No se presupone ninguna cola general.
 
-Guardar valida y reemplaza el archivo atómicamente, con modo 0600 y bloqueo entre escritores del addon. Si la versión del formulario quedó vieja, rechaza el guardado; recargar antes de continuar. Para edición manual, conservar permisos/propietario, validar antes de publicar y usar reemplazo atómico. Un editor externo que ignore el bloqueo puede competir con un guardado web; evitar ambos simultáneamente.
+Guardar valida y reemplaza el archivo atómicamente, con modo 0600 y bloqueo entre escritores del addon. Si la versión del formulario quedó vieja, rechaza el guardado y conserva el borrador; revisar los valores antes de volver a guardar. Para edición manual, conservar permisos/propietario, validar antes de publicar y usar reemplazo atómico. Un editor externo que ignore el bloqueo puede competir con un guardado web; evitar ambos simultáneamente.
+
+Cuando falla un guardado, la página conserva el formulario y señala los campos inválidos. El último borrador fallido se mantiene en la sesión administrativa y se recupera al recargar; **Descartar borrador** sólo borra ese borrador. Las credenciales ingresadas no se conservan ni se muestran: volver a ingresarlas si se habían cambiado. La configuración previamente guardada se conserva ante errores de validación, versión o permisos.
+
+La respuesta JSON del administrador incluye `error_code` y `field_errors` en fallas: `validation_error`, `stale_configuration`, `permission_denied`, `io_error` o `configuration_error`. Las claves de campo siguen el esquema (`settings.<campo>` para extensiones); los mensajes describen la regla, sin incluir valores enviados ni excepciones externas. La web distingue fallas de acceso al archivo y errores de campos; los permisos/SELinux deben comprobarse en la PBX si el mensaje los identifica.
 
 ```bash
 /usr/bin/python3 /usr/share/callflow-hooks/backend/entry.py admin <<'JSON'

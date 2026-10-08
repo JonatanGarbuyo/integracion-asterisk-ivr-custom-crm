@@ -60,6 +60,9 @@ fi
 %attr(700,root,root) %dir /var/lib/callflow-hooks
 
 %changelog
+* Thu Oct 08 2026 CallFlow Hooks contributors - 0.2.2-1
+- Preserve nonsecret failed form drafts and show safe field and access errors.
+
 * Thu Oct 08 2026 CallFlow Hooks contributors - 0.2.1-1
 - Compare effective service UIDs and preserve safe preflight diagnostics.
 
