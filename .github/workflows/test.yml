@@ -18,6 +18,7 @@ jobs:
   native-form:
     runs-on: ubuntu-22.04
     strategy:
+      fail-fast: false
       matrix:
         php: ['5.4', '8.2']
     steps:
@@ -33,4 +34,5 @@ jobs:
       - name: PHP syntax and native form boundary
         run: |
           php --version
+          find module -name '*.php' -exec php -l {} \;
           python -m unittest discover -s tests -p test_web.py -v
