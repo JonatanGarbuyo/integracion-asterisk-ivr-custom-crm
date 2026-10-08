@@ -34,5 +34,20 @@ jobs:
       - name: PHP syntax and native form boundary
         run: |
           php --version
-          find module -name '*.php' -exec php -l {} \;
-          python -m unittest discover -s tests -p test_web.py -v
+          find module native packaging -name '*.php' -exec php -l {} \;
+          python -m unittest discover -s tests -p '*web.py' -v
+          python -m unittest discover -s tests -p test_pbx_state.py -v
+  rpm:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and inspect noarch package
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+          python3 -m unittest discover -s tests -p test_package.py -v
+          python3 tools/build-rpm.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: callflow-hooks-rpm
+          path: dist/rpm/*

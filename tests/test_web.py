@@ -1,4 +1,4 @@
-"""Native page -> real backend; only Issabel authentication/DB/generator are doubles."""
+"""IssabelPBX page -> real backend; authentication/DB/generator are doubles."""
 import json
 import os
 import shutil
@@ -10,7 +10,7 @@ from agi_harness import call
 
 
 @unittest.skipUnless(shutil.which('php'), 'PHP is required; mandatory PHP jobs run in CI')
-class NativeForm(AdminBoundary, unittest.TestCase):
+class PBXForm(AdminBoundary, unittest.TestCase):
     def web(self, request):
         environment = dict(os.environ, CFH_TEST_CONFIG=str(self.config),
                            CFH_TEST_PYTHON=os.sys.executable)

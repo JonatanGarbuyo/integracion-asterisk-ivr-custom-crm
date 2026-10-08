@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module>
+  <menulist>
+    <menuitem menuid="callflowhooks" desc="CallFlow Hooks" parent="pbxconfig" module="yes" link="" order="20"/>
+  </menulist>
+</module>

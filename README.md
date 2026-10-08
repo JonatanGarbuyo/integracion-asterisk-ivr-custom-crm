@@ -2,7 +2,7 @@
 
 Addon extensible para Issabel: un IVR normal selecciona un perfil que ejecuta un handler local JSON y continúa a un destino aprobado. Afiliados CRM será el primer caso de uso comercial.
 
-La implementación actual incluye un formulario **IssabelPBX**, perfiles independientes, .conf compartido con edición manual, destinos automáticos, entradas none/CallerID/DTMF/variable de canal, contexto por llamada y ejecución con presupuesto/contingencia. La administración nativa de Issabel, el paquete RPM y la instalación directa desde GitHub están pendientes; su [diseño](docs/native-addon-design.md) completa el alcance de la primera entrega. Se revisa en [PR #30](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/pull/30).
+La versión 0.2.0 en revisión incluye administración nativa **PBX → CallFlow Hooks**, sesión/ACL de Issabel, formulario generado por esquema, perfiles independientes, .conf compartido con edición manual, destinos automáticos, entradas none/CallerID/DTMF/variable de canal, contexto por llamada y ejecución con presupuesto/contingencia. Un RPM distribuye el módulo nativo, el puente IssabelPBX y el backend compartido. El instalador permite usar un checkout fijado o descargar un RPM de una release publicada. La instalación real permanece pendiente de la VM; ver [laboratorio](docs/laboratory.md) y [diseño](docs/native-addon-design.md). Se revisa en [PR #30](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/pull/30).
 
 - [Contrato del handler](docs/contracts/handler-v1.md).
 - [Configuración y extensiones](docs/configuration.md).
@@ -13,8 +13,9 @@ La implementación actual incluye un formulario **IssabelPBX**, perfiles indepen
 ```bash
 python3 -m unittest discover -s tests -v
 python3 tools/build.py
+python3 tools/build-rpm.py  # requiere rpmbuild y checkout limpio
 ```
 
-CI ejecuta procesos JSON/AGI con Python 3.6, 3.9 y 3.12, y el formulario real PHP con 5.4 y 8.2, simulando únicamente las fronteras de Issabel. Sin PHP local, esas pruebas se omiten localmente y son obligatorias en CI.
+CI ejecuta procesos JSON/AGI e instaladores con Python 3.6, 3.9 y 3.12, y los formularios reales PHP con 5.4 y 8.2, simulando las fronteras de Issabel/GitHub/herramientas del sistema. Un job separado construye e inspecciona el RPM real. Sin PHP o RPM locales, las respectivas pruebas se omiten y son obligatorias en sus jobs CI. La publicación de un tag coincidente con `packaging/version.json` ejecuta pruebas y publica RPM/manifiesto; no se ha publicado una release estable de esta corrección.
 
 Objetivos de instalación: **Issabel 4/Asterisk 11.25.3/CentOS 7.9/IssabelPBX 2.11.0-48** e Issabel 5/Asterisk 18. Compatibilidad efectiva, audio y regeneración se validarán en VM. La integración de Afiliados y el hook opcional al responder cola pertenecen a las siguientes entregas; esta versión no los instala.

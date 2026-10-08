@@ -1,6 +1,6 @@
 # Perfiles y extensiones
 
-El formulario actual se abre en **IssabelPBX sin embeber → Applications → CallFlow Hooks**, `/admin/config.php?display=callflowhooks`. Su visibilidad en el menú PBX embebido no está resuelta. Usa autenticación/permisos de IssabelPBX y token CSRF. La pantalla nativa **PBX → CallFlow Hooks**, con sesión y ACL del framework Issabel, está pendiente según el [diseño de integración](native-addon-design.md). Guarda en `/etc/asterisk/callflow-hooks/profiles.conf`, la misma fuente que consume el AGI. El listado y el formulario ocultan los campos declarados `secret`; un valor vacío conserva la credencial anterior. Para borrarla expresamente, editar el .conf.
+El RPM 0.2.0 registra **PBX → CallFlow Hooks**, `/index.php?menu=callflowhooks`, con sesión, ACL y CSRF nativos de Issabel. La página de IssabelPBX sin embeber sigue disponible como acceso alternativo; el `.tgz` instala únicamente ese puente, no el módulo nativo. La integración instalada se comprobará en la VM según el [laboratorio](laboratory.md). Ambas pantallas guardan en `/etc/asterisk/callflow-hooks/profiles.conf`, la misma fuente que consume el AGI. El listado y el formulario ocultan los campos declarados `secret`; un valor vacío conserva la credencial anterior. Para borrarla expresamente, editar el .conf.
 
 ```ini
 [profile:welcome]
@@ -31,14 +31,14 @@ Los internos del ejemplo deben sustituirse por destinos existentes en la PBX. El
 Guardar valida y reemplaza el archivo atómicamente, con modo 0600 y bloqueo entre escritores del addon. Si la versión del formulario quedó vieja, rechaza el guardado; recargar antes de continuar. Para edición manual, conservar permisos/propietario, validar antes de publicar y usar reemplazo atómico. Un editor externo que ignore el bloqueo puede competir con un guardado web; evitar ambos simultáneamente.
 
 ```bash
-/usr/bin/python3 /var/www/html/admin/modules/callflowhooks/backend/entry.py admin <<'JSON'
+/usr/bin/python3 /usr/share/callflow-hooks/backend/entry.py admin <<'JSON'
 {"action":"describe"}
 JSON
 ```
 
 `ok:true` confirma validación, y la respuesta no incluye secretos guardados. Después de crear perfiles manualmente, usar **Sincronizar destinos de .conf**, luego **Aplicar configuración**. Los perfiles creados desde el formulario registran automáticamente su Custom Destination. El administrador debe seleccionar **Custom Destinations → CallFlow Hooks: welcome** desde una opción del IVR habitual. La ruta entrante y el resto del IVR se administran normalmente.
 
-Cada extensión vive en `modules/callflowhooks/extensions/<nombre>/manifest.json`, con su ejecutable. Estos archivos se instalan como código confiable del addon y no son editables desde el formulario. Ejemplo:
+Cada extensión del RPM vive en `/usr/share/callflow-hooks/extensions/<nombre>/manifest.json`, con su ejecutable. Estos archivos se instalan como código confiable del addon y no son editables desde el formulario. Ejemplo:
 
 ```json
 {

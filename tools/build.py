@@ -4,10 +4,12 @@ import argparse
 import gzip
 import io
 import pathlib
+import json
 import tarfile
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--output', default='dist/callflowhooks-0.1.0.tgz')
+version = json.loads((pathlib.Path(__file__).resolve().parents[1]/'packaging/version.json').read_text())['version']
+parser.add_argument('--output', default='dist/callflowhooks-'+version+'.tgz')
 args = parser.parse_args()
 root = pathlib.Path(__file__).resolve().parents[1] / 'module'
 output = pathlib.Path(args.output)

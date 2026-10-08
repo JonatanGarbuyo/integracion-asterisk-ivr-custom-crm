@@ -5,10 +5,18 @@ function callflowhooks_escape($value) {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 }
 
+function callflowhooks_entry() {
+    // The legacy archive keeps a private copy; RPM owns the shared runtime.
+    if (defined('CFH_CORE_DIRECTORY')) return CFH_CORE_DIRECTORY.'/backend/entry.py';
+    if (is_file('/usr/share/callflow-hooks/backend/entry.py')) return '/usr/share/callflow-hooks/backend/entry.py';
+    if (is_file(dirname(__FILE__).'/backend/entry.py')) return dirname(__FILE__).'/backend/entry.py';
+    return '/usr/share/callflow-hooks/backend/entry.py';
+}
+
 function callflowhooks_backend($request) {
     $python = defined('CFH_PYTHON_BINARY') ? CFH_PYTHON_BINARY : '/usr/bin/python3';
     $config = defined('CFH_CONFIGURATION_FILE') ? CFH_CONFIGURATION_FILE : '/etc/asterisk/callflow-hooks/profiles.conf';
-    $command = escapeshellarg($python).' '.escapeshellarg(dirname(__FILE__).'/backend/entry.py').
+    $command = escapeshellarg($python).' '.escapeshellarg(callflowhooks_entry()).
                ' --config '.escapeshellarg($config).' admin';
     $payload = json_encode($request);
     if ($payload === false || strlen($payload) > 65536) throw new Exception('Solicitud demasiado grande');
@@ -89,7 +97,7 @@ function callflowhooks_get_config($engine) {
         // A valid fallback exists before invoking AGI, including interpreter/AGI failure.
         $commands = array(
             'Set(CALLFLOW_NEXT_DESTINATION='.$profile['fallback_destination'].')',
-            'AGI('.dirname(__FILE__).'/backend/entry.py,agi,'.$profile['identifier'].')',
+            'AGI('.callflowhooks_entry().',agi,'.$profile['identifier'].')',
             'Goto(${CALLFLOW_NEXT_DESTINATION})'
         );
         foreach ($commands as $command) $ext->add($context, 's', '', new callflowhooks_instruction($command));

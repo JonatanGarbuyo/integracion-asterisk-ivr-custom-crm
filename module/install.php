@@ -10,7 +10,6 @@ if (!file_exists($configuration)) {
     fclose($stream);
 }
 chmod($configuration, 0600);
-chmod(dirname(__FILE__).'/backend/entry.py', 0755);
 // Module Administration normally runs as the PBX service user. Root installs
 // must explicitly assign that same owner before using the web form (lab guide).
 require_once dirname(__FILE__).'/functions.inc.php';

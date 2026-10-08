@@ -1,0 +1,27 @@
+name: Publish CallFlow Hooks RPM
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '5.4'
+          extensions: openssl
+          coverage: none
+      - name: Test and build pinned release
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+          test "$GITHUB_REF_NAME" = "v$(python3 -c 'import json; print(json.load(open("packaging/version.json"))["version"])')"
+          sudo --preserve-env=PATH python3 -m unittest discover -s tests -v
+          python3 tools/build-rpm.py
+      - name: Publish versioned package and manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/rpm/*.rpm dist/rpm/manifest.json --verify-tag --title "CallFlow Hooks $GITHUB_REF_NAME" --generate-notes

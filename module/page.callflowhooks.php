@@ -1,10 +1,11 @@
 <?php
 if (!defined('ISSABELPBX_IS_AUTH')) { die('No direct script access allowed'); }
-if (!isset($_SESSION['AMP_user']) || !is_object($_SESSION['AMP_user']) ||
-    !$_SESSION['AMP_user']->checkSection('callflowhooks')) {
+if (!defined('CFH_NATIVE_AUTHORIZED') && (!isset($_SESSION['AMP_user']) || !is_object($_SESSION['AMP_user']) ||
+    !$_SESSION['AMP_user']->checkSection('callflowhooks'))) {
     echo 'Acceso denegado';
     return;
 }
+$callflowhooks_form_url = defined('CFH_NATIVE_AUTHORIZED') ? 'index.php?menu=callflowhooks' : 'config.php?display=callflowhooks';
 try {
     if (!isset($_SESSION['callflowhooks_csrf'])) {
         $strong = false;
@@ -31,26 +32,26 @@ try {
             $profile['extension'] = $extension['identifier'];
             $profile['settings'] = callflowhooks_post_fields($extension['fields'], isset($_POST['settings']) && is_array($_POST['settings']) ? $_POST['settings'] : array());
             $configuration = callflowhooks_save($profile, isset($_POST['configuration_version']) ? $_POST['configuration_version'] : '');
-            echo '<p>Perfil guardado. Seleccionar su destino en el IVR y aplicar configuración.</p>';
+            echo '<p>Perfil guardado. Seleccionar su destino en el IVR. Aplicar configuración en <a href="/admin/">Configuración PBX</a>.</p>';
         }
     }
     echo '<h2>CallFlow Hooks</h2><p>Perfiles de handlers desde IVR</p><ul>';
     $selected = null;
     foreach ($configuration['profiles'] as $profile) {
-        echo '<li><a href="config.php?display=callflowhooks&amp;profile='.rawurlencode($profile['identifier']).'">'.callflowhooks_escape($profile['identifier']).'</a> — '.callflowhooks_escape($profile['custom_destination']).'</li>';
+        echo '<li><a href="'.$callflowhooks_form_url.'&amp;profile='.rawurlencode($profile['identifier']).'">'.callflowhooks_escape($profile['identifier']).'</a> — '.callflowhooks_escape($profile['custom_destination']).'</li>';
         if (isset($_GET['profile']) && $_GET['profile'] === $profile['identifier']) $selected = $profile;
     }
-    echo '</ul><p><a href="config.php?display=callflowhooks">Nuevo perfil</a></p>';
+    echo '</ul><p><a href="'.$callflowhooks_form_url.'">Nuevo perfil</a></p>';
     $extensionId = $selected ? $selected['extension'] : (isset($_GET['extension']) ? $_GET['extension'] : $configuration['extensions'][0]['identifier']);
     $extension = null;
-    echo '<p><label>Extensión <select onchange="window.location.href=\'config.php?display=callflowhooks&amp;extension=\'+encodeURIComponent(this.value)">';
+    echo '<p><label>Extensión <select onchange="window.location.href=\''.$callflowhooks_form_url.'&amp;extension=\'+encodeURIComponent(this.value)">';
     foreach ($configuration['extensions'] as $item) {
         if ($item['identifier'] === $extensionId) $extension = $item;
         echo '<option value="'.callflowhooks_escape($item['identifier']).'"'.($item['identifier'] === $extensionId ? ' selected' : '').'>'.callflowhooks_escape($item['title']).'</option>';
     }
     echo '</select></label></p>';
     if (!$extension) throw new Exception('Extensión desconocida');
-    echo '<form method="post" action="config.php?display=callflowhooks">';
+    echo '<form method="post" action="'.$callflowhooks_form_url.'">';
     foreach (array('csrf_token'=>$_SESSION['callflowhooks_csrf'], 'configuration_version'=>$configuration['configuration_version'], 'extension'=>$extensionId) as $name=>$value) {
         echo '<input type="hidden" name="'.$name.'" value="'.callflowhooks_escape($value).'">';
     }
