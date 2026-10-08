@@ -2,10 +2,12 @@ name: Publish CallFlow Hooks RPM
 on:
   push:
     tags: ['v*']
+    branches: ['release/callflow-hooks-v*']
 permissions:
   contents: write
 jobs:
   release:
+    concurrency: callflow-hooks-release
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -18,10 +20,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y rpm
-          test "$GITHUB_REF_NAME" = "v$(python3 -c 'import json; print(json.load(open("packaging/version.json"))["version"])')"
+          CFH_TAG="v$(python3 -c 'import json; print(json.load(open("packaging/version.json"))["version"])')"
+          test "$GITHUB_REF_NAME" = "$CFH_TAG" || test "$GITHUB_REF_NAME" = "release/callflow-hooks-$CFH_TAG"
+          echo "CFH_TAG=$CFH_TAG" >> "$GITHUB_ENV"
           sudo --preserve-env=PATH python3 -m unittest discover -s tests -v
           python3 tools/build-rpm.py
       - name: Publish versioned package and manifest
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/rpm/*.rpm dist/rpm/manifest.json --verify-tag --title "CallFlow Hooks $GITHUB_REF_NAME" --generate-notes
+        run: |
+          gh release create "$CFH_TAG" dist/rpm/*.rpm dist/rpm/manifest.json \
+            --target "$GITHUB_SHA" --prerelease --latest=false \
+            --title "CallFlow Hooks $CFH_TAG — laboratorio" \
+            --notes-file packaging/release-notes.md

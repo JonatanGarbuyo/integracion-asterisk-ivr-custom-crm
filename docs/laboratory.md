@@ -33,16 +33,16 @@ Para preparar el RPM sin instalarlo:
 /usr/bin/python3 tools/install.py --checkout "$PWD" --ref "$CFH_REVISION" --prepare-only --output dist/prepared
 ```
 
-### Versiones publicadas
+### Descarga directa sin Git
 
-Cuando exista una release `v0.2.0` con RPM y `manifest.json`, se podrá descargar sólo el instalador y ejecutar:
+La prerelease de laboratorio `v0.2.0` distribuye el RPM y `manifest.json`. Para descargar e instalar sin Git ni herramientas de compilación:
 
 ```bash
 curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.0/tools/install.py -o /tmp/callflow-install.py
 sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.0
 ```
 
-Esta modalidad requiere `rpm2cpio` y `cpio`, pero no `git` ni `rpmbuild` en la PBX. **El tag/release no ha sido publicado durante esta corrección**; los comandos de release son futuros. El workflow de publicación se ejecuta al crear un tag coincidente con la versión del paquete. El checksum detecta corrupción y se contrasta además la identidad del RPM; no equivale por sí solo a una firma de un editor independiente.
+Esta modalidad requiere `rpm2cpio` y `cpio`, pero no `git` ni `rpmbuild` en la PBX. El workflow publica una prerelease de laboratorio después de las pruebas y la construcción del RPM, desde un tag coincidente o una rama `release/callflow-hooks-vX.Y.Z`. No certifica la instalación efectiva en la VM. El checksum detecta corrupción y se contrasta además la identidad del RPM; no equivale por sí solo a una firma de un editor independiente.
 
 ## Registro, permisos y actualización
 

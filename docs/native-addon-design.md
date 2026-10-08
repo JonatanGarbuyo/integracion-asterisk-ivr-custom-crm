@@ -1,6 +1,6 @@
 # Administración nativa e instalación desde el repositorio
 
-Diseño de la corrección de la primera entrega, ticket [#21](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/21). La versión 0.2.0 implementa este diseño con pruebas en fronteras simuladas y construcción RPM real. La instalación efectiva en las VM y la publicación de una release siguen pendientes. La especificación y los tickets de GitHub siguen siendo canónicos.
+Diseño de la corrección de la primera entrega, ticket [#21](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/21). La versión 0.2.0 implementa este diseño con pruebas en fronteras simuladas y construcción RPM real. Se distribuye como prerelease de laboratorio; la instalación efectiva en las VM sigue pendiente. La especificación y los tickets de GitHub siguen siendo canónicos.
 
 ## Componentes
 
@@ -28,7 +28,7 @@ El formulario no implementa todavía el perfil comercial ni el hook de respuesta
 
 ## Instalar sin transferir archivos manualmente
 
-El usuario solicita instalar directamente desde GitHub. El repositorio incluye `tools/install.py` y su uso en [laboratorio](laboratory.md); el administrador podrá descargarlo y ejecutarlo en la PBX, o ejecutarlo desde un checkout. Los comandos de checkout están disponibles; los de release requieren publicar primero el tag y sus assets.
+El usuario solicita instalar directamente desde GitHub. El repositorio incluye `tools/install.py` y su uso en [laboratorio](laboratory.md); el administrador puede descargarlo y ejecutarlo en la PBX, o ejecutarlo desde un checkout. La prerelease de laboratorio permite descargar el RPM sin instalar Git ni herramientas de construcción en la PBX.
 
 **Versiones publicadas:** seleccionar un tag de release explícito. El instalador obtiene el manifiesto y el RPM apropiado, comprueba su integridad y metadatos de versión/arquitectura y usa el gestor de paquetes local. No exige Python de desarrollo, Git ni `rpmbuild` en la PBX cuando instala un RPM publicado. Los checksums detectan corrupción; la autenticidad depende además del canal y de la procedencia de la publicación, no sólo del checksum.
 

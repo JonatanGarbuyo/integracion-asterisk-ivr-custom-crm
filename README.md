@@ -16,6 +16,6 @@ python3 tools/build.py
 python3 tools/build-rpm.py  # requiere rpmbuild y checkout limpio
 ```
 
-CI ejecuta procesos JSON/AGI e instaladores con Python 3.6, 3.9 y 3.12, y los formularios reales PHP con 5.4 y 8.2, simulando las fronteras de Issabel/GitHub/herramientas del sistema. Un job separado construye e inspecciona el RPM real. Sin PHP o RPM locales, las respectivas pruebas se omiten y son obligatorias en sus jobs CI. La publicación de un tag coincidente con `packaging/version.json` ejecuta pruebas y publica RPM/manifiesto; no se ha publicado una release estable de esta corrección.
+CI ejecuta procesos JSON/AGI e instaladores con Python 3.6, 3.9 y 3.12, y los formularios reales PHP con 5.4 y 8.2, simulando las fronteras de Issabel/GitHub/herramientas del sistema. Un job separado construye e inspecciona el RPM real. Sin PHP o RPM locales, las respectivas pruebas se omiten y son obligatorias en sus jobs CI. La publicación desde un tag o rama de release coincidente con `packaging/version.json` ejecuta pruebas y publica RPM/manifiesto como prerelease de laboratorio. La modalidad `--release v0.2.0` permite instalar sin Git ni herramientas de compilación en la PBX; ver los comandos en [laboratorio](docs/laboratory.md#descarga-directa-sin-git).
 
 Objetivos de instalación: **Issabel 4/Asterisk 11.25.3/CentOS 7.9/IssabelPBX 2.11.0-48** e Issabel 5/Asterisk 18. Compatibilidad efectiva, audio y regeneración se validarán en VM. La integración de Afiliados y el hook opcional al responder cola pertenecen a las siguientes entregas; esta versión no los instala.
