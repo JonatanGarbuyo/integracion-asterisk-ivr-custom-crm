@@ -41,6 +41,14 @@ class AddonTest(unittest.TestCase):
         self.assertTrue(config.exists())
         self.assertFalse(program.exists())
 
+    def test_install_normalizes_existing_secret_permissions(self):
+        secret = self.root / 'etc/asterisk/issabel_crm_secrets.conf'
+        secret.write_text('[auth]\nlookup_token = test-secret\nnotify_token = test-secret\n')
+        secret.chmod(0o644)
+        self.assertEqual(0, self.command('install', '--root', str(self.root)).returncode)
+        self.assertEqual(0o640, secret.stat().st_mode & 0o777)
+        self.assertIn('test-secret', secret.read_text())
+
     def test_staged_entrypoint_runs_without_importing_the_checkout(self):
         from tests.agi_harness import run_agi
         self.assertEqual(0, self.command('install', '--root', str(self.root)).returncode)

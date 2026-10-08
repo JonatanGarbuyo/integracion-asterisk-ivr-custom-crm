@@ -3,9 +3,11 @@ import sys
 import syslog
 
 
-def record(outcome, interaction_id='', stderr=True):
-    message = json.dumps({'component': 'issabel-crm', 'outcome': outcome,
-                          'interaction_id': interaction_id})
+def record(outcome, interaction_id='', stderr=True, destination=''):
+    fields = {'component': 'issabel-crm', 'outcome': outcome, 'interaction_id': interaction_id}
+    if destination:
+        fields['destination'] = destination
+    message = json.dumps(fields)
     syslog.syslog(syslog.LOG_INFO, message)
     if stderr:
         sys.stderr.write(message + '\n')

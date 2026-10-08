@@ -94,21 +94,14 @@ def install(root):
         if not path.exists():
             atomic_write(path, (SOURCE_ROOT / 'config' / (name + '.example')).read_bytes())
         ownership(path, root)
-    dialplan = target(root, '/etc/asterisk/issabel_crm_extensions.conf')
-    atomic_write(dialplan, render(config))
-    ownership(dialplan, root)
-    runtime = target(root, config['runtime_dir'])
-    if not runtime.exists():
-        runtime.mkdir(parents=True, mode=0o750)
-        ownership(runtime, root, runtime=True)
     # Default runtime dir is recreated on reboot by systemd-tmpfiles.
     tmpfiles = target(root, '/usr/lib/tmpfiles.d/issabel-crm.conf')
     atomic_write(tmpfiles, 'd /run/issabel-crm 0750 asterisk asterisk -\n', 0o644)
-    include(root, True)
+    enable(root, config)
 
 
-def enable(root):
-    config = read_config(str(target(root, '/etc/asterisk/issabel_crm.conf')))
+def enable(root, config=None):
+    config = config or read_config(str(target(root, '/etc/asterisk/issabel_crm.conf')))
     dialplan = target(root, '/etc/asterisk/issabel_crm_extensions.conf')
     atomic_write(dialplan, render(config))
     ownership(dialplan, root)
@@ -132,6 +125,7 @@ def apply(root, candidate):
     text = render(config)
     atomic_write(config_path, content)
     ownership(config_path, root)
+    os.chmod(str(config_path), 0o640)
     atomic_write(dialplan, text)
     ownership(dialplan, root)
 

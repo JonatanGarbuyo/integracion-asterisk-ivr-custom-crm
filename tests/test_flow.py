@@ -20,9 +20,11 @@ class CRMHandler(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        self.server.requests.append(parse_qs(urlsplit(self.path).query))
+        query = parse_qs(urlsplit(self.path).query)
+        self.server.requests.append(query)
+        self.server.lookup_auth.append(self.headers.get('Authorization'))
         time.sleep(self.server.lookup_delay)
-        body = self.server.lookup_body
+        body = self.server.lookup_by_cuil.get(query.get('cuil', [''])[0], self.server.lookup_body)
         self.send_response(self.server.lookup_status)
         self.end_headers()
         try:
@@ -37,6 +39,7 @@ class CRMHandler(BaseHTTPRequestHandler):
             pass
 
     def do_POST(self):
+        self.server.notify_auth.append(self.headers.get('Authorization'))
         self.server.notifications.append(json.loads(self.rfile.read(int(self.headers['Content-Length']))))
         self.server.received.set()
         time.sleep(self.server.notify_delay)
@@ -50,6 +53,8 @@ class FlowTest(unittest.TestCase):
         self.root = Path(self.tmp.name)
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), CRMHandler)
         self.server.requests, self.server.notifications = [], []
+        self.server.lookup_auth, self.server.notify_auth = [], []
+        self.server.lookup_by_cuil = {}
         self.server.received = threading.Event()
         self.server.lookup_delay = self.server.notify_delay = self.server.trickle = 0
         self.server.lookup_status, self.server.notify_status = 200, 204
@@ -107,20 +112,20 @@ Local/1002@from-queue/n = crm-user-b
 
     def test_lookup_failures_clear_old_affiliate_and_continue_to_general_queue(self):
         scenarios = [
-            (404, b'', 'not_found'), (500, b'{}', 'http_error'),
-            (200, b'broken', 'invalid_response'),
-            (200, b'{"affiliate_id":"a","obra_social":["OS_A","OS_B"]}', 'ambiguous_obra'),
-            (200, b'{"affiliate_id":"a","obra_social":"UNKNOWN"}', 'unmapped_obra'),
-            (200, b'{"affiliate_id":"a","obra_social":"${SHELL(evil)}"}', 'invalid_response'),
-            (200, b'x' * 65537, 'response_too_large'),
+            (404, b'', 'not_found', ''), (500, b'{}', 'http_error', ''),
+            (200, b'broken', 'invalid_response', ''),
+            (200, b'{"affiliate_id":"a","obra_social":["OS_A","OS_B"]}', 'ambiguous_obra', 'a'),
+            (200, b'{"affiliate_id":"a","obra_social":"UNKNOWN"}', 'unmapped_obra', 'a'),
+            (200, b'{"affiliate_id":"a","obra_social":"${SHELL(evil)}"}', 'invalid_response', ''),
+            (200, b'x' * 65537, 'response_too_large', ''),
         ]
-        for status, body, expected in scenarios:
+        for status, body, expected, affiliate in scenarios:
             with self.subTest(expected=expected):
                 self.server.lookup_status, self.server.lookup_body = status, body
                 variables, _, _, errors = run_agi('identify', self.config,
                     variables={'CRM_AFFILIATE_ID': 'stale-affiliate'}, digits=['20123456786'])
                 self.assertEqual(expected, variables['CRM_RESULT'])
-                self.assertEqual(('queue', '600', ''),
+                self.assertEqual(('queue', '600', affiliate),
                     (variables['CRM_DEST_TYPE'], variables['CRM_DEST'], variables['CRM_AFFILIATE_ID']))
                 self.assertNotIn('20123456786', errors)
                 run_agi('answer', self.config, variables=variables)
@@ -219,6 +224,74 @@ Local/1002@from-queue/n = crm-user-b
         self.assertEqual('600', variables['CRM_DEST'])
         self.assertEqual('', variables['CRM_AFFILIATE_ID'])
         self.assertNotIn('evil', errors)
+
+    def test_recognized_affiliate_in_general_queue_still_notifies_operator(self):
+        self.server.lookup_body = b'{"affiliate_id":"af-recognized","obra_social":"UNMAPPED"}'
+        variables = self.identified()
+        self.assertEqual('600', variables['CRM_DEST'])
+        variables['CRM_QUEUE'] = '600'
+        run_agi('answer', self.config, variables=variables)
+        self.assertTrue(self.server.received.wait(2))
+        self.assertEqual('af-recognized', self.server.notifications[0]['affiliate_id'])
+
+    def test_reassignment_while_waiting_omits_notice_to_a_different_crm_user(self):
+        variables = self.identified()
+        self.config.write_text(self.config.read_text().replace('crm-user-a', 'crm-user-reassigned'))
+        _, _, _, errors = run_agi('answer', self.config, variables=variables)
+        self.assertIn('notification_mapping_changed', errors)
+        self.assertEqual([], self.server.notifications)
+
+    def test_routing_diagnostic_includes_approved_destination_without_cuil(self):
+        _, _, _, errors = run_agi('identify', self.config, digits=['20123456786'])
+        diagnostic = json.loads(errors.strip())
+        self.assertEqual('queue:601', diagnostic['destination'])
+        self.assertNotIn('20123456786', errors)
+
+    def test_bearer_tokens_are_sent_in_headers_and_never_in_agi_logs(self):
+        secrets = self.root / 'credentials.conf'
+        secrets.write_text('[auth]\nlookup_token = lookup-secret\nnotify_token = notify-secret\n')
+        self.config.write_text(self.config.read_text().replace('[crm]', '[crm]\nsecrets_file = ' + str(secrets)))
+        variables, _, _, errors = run_agi('identify', self.config, digits=['20123456786'])
+        variables.update(MEMBERINTERFACE='PJSIP/1001', CRM_QUEUE='601')
+        _, _, _, answer_errors = run_agi('answer', self.config, variables=variables)
+        self.assertTrue(self.server.received.wait(2))
+        self.assertEqual(['Bearer lookup-secret'], self.server.lookup_auth)
+        self.assertEqual(['Bearer notify-secret'], self.server.notify_auth)
+        self.assertNotIn('secret', errors + answer_errors)
+
+    def test_connection_refused_and_notification_http_error_are_best_effort(self):
+        variables = self.identified()
+        self.server.notify_status = 503
+        _, _, elapsed, _ = run_agi('answer', self.config, variables=variables)
+        self.assertLess(elapsed, 0.8)
+        self.assertTrue(self.server.received.wait(2))
+        time.sleep(0.2)
+        self.assertEqual(1, len(self.server.notifications))
+        # Reuse the now-closed listener address for deterministic connection refusal.
+        self.server.shutdown()
+        self.server.server_close()
+        variables, _, elapsed, _ = run_agi('identify', self.config, digits=['20123456786'])
+        self.assertEqual('transport_error', variables['CRM_RESULT'])
+        self.assertEqual('600', variables['CRM_DEST'])
+        self.assertLess(elapsed, 0.8)
+
+    def test_simultaneous_distinct_affiliates_keep_their_own_notice(self):
+        from concurrent.futures import ThreadPoolExecutor
+        self.server.lookup_by_cuil = {
+            '20123456786': b'{"affiliate_id":"af-demo-1","obra_social":"OS_A"}',
+            '27234567891': b'{"affiliate_id":"af-demo-2","obra_social":"OS_A"}'}
+        def call(index):
+            cuil = '20123456786' if index == 0 else '27234567891'
+            variables, _, _, _ = run_agi('identify', self.config, digits=[cuil], uniqueid='1700000000.' + str(index))
+            variables.update(MEMBERINTERFACE='PJSIP/1001', CRM_QUEUE='601')
+            run_agi('answer', self.config, variables=variables)
+            return variables['CRM_INTERACTION_ID'], 'af-demo-1' if index == 0 else 'af-demo-2'
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            expected = dict(pool.map(call, range(2)))
+        deadline = time.monotonic() + 3
+        while len(self.server.notifications) < 2 and time.monotonic() < deadline:
+            time.sleep(0.02)
+        self.assertEqual(expected, {n['interaction_id']: n['affiliate_id'] for n in self.server.notifications})
 
     def test_configured_star_terminator_is_accepted_by_the_ivr(self):
         self.config.write_text(self.config.read_text().replace('attempts = 2', 'attempts = 2\nterminator = *'))

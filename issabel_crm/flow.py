@@ -36,6 +36,7 @@ def identify(agi):
     agi.set('CRM_DEST_TYPE', 'queue')
     agi.set('CRM_DEST', config['fallback_queue'])
     agi.set('__CRM_PBX_ID', config['pbx_id'])
+    agi.set('__CRM_AGENT_MAP_REV', config['agent_map_revision'])
     cuil = ''
     for _ in range(config['attempts']):
         cuil = agi.collect(config['prompt'], config['digit_timeout_ms'], config['terminator'])
@@ -44,7 +45,7 @@ def identify(agi):
         agi.playback(config['invalid_prompt'])
     else:
         agi.set('CRM_RESULT', 'invalid_cuil')
-        record('invalid_cuil', interaction)
+        record('invalid_cuil', interaction, destination='queue:' + config['fallback_queue'])
         return
     agi.set('__CRM_CUIL', cuil)
     url = urlsplit(config['lookup_url'])
@@ -52,6 +53,7 @@ def identify(agi):
     lookup_url = urlunsplit((url.scheme, url.netloc, url.path, urlencode(query), ''))
     response = request({'method': 'GET', 'url': lookup_url, 'token': config['lookup_token']},
                        config['lookup_timeout'])
+    kind, destination = 'queue', config['fallback_queue']
     outcome = response.get('error', '')
     if not outcome:
         status = response.get('status', 0)
@@ -64,10 +66,15 @@ def identify(agi):
             if not isinstance(body, dict) or not identifier(body.get('affiliate_id')):
                 outcome = 'invalid_response'
             elif isinstance(body.get('obra_social'), list):
-                outcome = 'ambiguous_obra'
+                if body['obra_social'] and all(identifier(obra) for obra in body['obra_social']):
+                    agi.set('__CRM_AFFILIATE_ID', body['affiliate_id'])
+                    outcome = 'ambiguous_obra'
+                else:
+                    outcome = 'invalid_response'
             elif not identifier(body.get('obra_social')):
                 outcome = 'invalid_response'
             elif body['obra_social'] not in config['routes']:
+                agi.set('__CRM_AFFILIATE_ID', body['affiliate_id'])
                 outcome = 'unmapped_obra'
             else:
                 kind, destination = config['routes'][body['obra_social']]
@@ -77,14 +84,14 @@ def identify(agi):
                 agi.set('CRM_DEST', destination)
                 outcome = 'found'
     agi.set('CRM_RESULT', outcome)
-    record(outcome, interaction)
+    record(outcome, interaction, destination=kind + ':' + destination)
 
 
 def answer(agi):
     # Snapshot member data before chaining an existing Queue AGI.
     values = {name: agi.get(name) for name in (
         'CRM_INTERACTION_ID', 'CRM_AFFILIATE_ID', 'CRM_PBX_ID', 'CRM_UNIQUEID',
-        'CRM_LINKEDID', 'CRM_QUEUE', 'MEMBERINTERFACE', 'MEMBERNAME', 'CRM_PREVIOUS_QAGI')}
+        'CRM_LINKEDID', 'CRM_QUEUE', 'CRM_AGENT_MAP_REV', 'MEMBERINTERFACE', 'MEMBERNAME', 'CRM_PREVIOUS_QAGI')}
     previous = values['CRM_PREVIOUS_QAGI']
     if previous and 'issabel-crm-answer.agi' not in previous:
         agi.execute('AGI', previous)
@@ -95,6 +102,9 @@ def answer(agi):
         config = read_config()
     except ConfigError:
         record('notification_config_error', values['CRM_INTERACTION_ID'])
+        return
+    if values['CRM_AGENT_MAP_REV'] != config['agent_map_revision']:
+        record('notification_mapping_changed', values['CRM_INTERACTION_ID'])
         return
     member = values['MEMBERINTERFACE']
     agent = config['agents'].get(member)

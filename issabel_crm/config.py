@@ -1,6 +1,8 @@
 """One read-only, validated configuration snapshot per AGI invocation."""
 import configparser
 import io
+import hashlib
+import json
 import math
 import os
 import re
@@ -84,6 +86,8 @@ def read_config(path=None, text=None):
             config['agents'][member] = {'crm_user_id': parts[0]}
             if len(parts) == 2:
                 config['agents'][member]['extension'] = parts[1]
+        config['agent_map_revision'] = hashlib.sha256(
+            json.dumps(config['agents'], sort_keys=True).encode('utf-8')).hexdigest()
         secrets_path = crm.get('secrets_file', '')
         if secrets_path:
             if not os.path.isabs(secrets_path):

@@ -14,7 +14,7 @@ Este contrato sirve para desarrollar sin acceso al proveedor. Adaptar `issabel_c
 - `404`: afiliado no encontrado.
 - `obra_social` como lista: cobertura ambigua; no seleccionar arbitrariamente una obra.
 - Error HTTP, transporte, timeout, JSON inválido o respuesta superior a 64 KiB: resultado técnico separado y atención general.
-- Obra sin mapa: resultado `unmapped_obra`, atención general.
+- Obra sin mapa: resultado `unmapped_obra`, atención general. Si el afiliado está reconocido, su ID se conserva y el operador general puede recibir la ficha; lo mismo sucede con obras ambiguas válidas. Fallas técnicas o identidad inválida no conservan un afiliado anterior.
 - El CRM nunca devuelve un contexto, una cola ni un número para ejecutar: sólo un código resuelto contra destinos aprobados localmente.
 - El presupuesto `lookup_timeout` abarca arranque del trabajador, DNS, conexión, TLS, recepción y parseo. Un supervisor mata y recoge el proceso al vencer el presupuesto. No se siguen redirects ni proxies del entorno.
 
@@ -41,7 +41,7 @@ Este contrato sirve para desarrollar sin acceso al proveedor. Adaptar `issabel_c
 }
 ```
 
-`extension` sólo se incluye cuando figura explícitamente en el mapa comprobado. No se deriva de `Local`, `Agent`, nombres ni dispositivos desviados. La clave del mapa es `MEMBERINTERFACE`, nunca una regex universal.
+`extension` sólo se incluye cuando figura explícitamente en el mapa comprobado. No se deriva de `Local`, `Agent`, nombres ni dispositivos desviados. La clave del mapa es `MEMBERINTERFACE`, nunca una regex universal. Una huella por interacción detecta cambios del mapa durante la espera; se omite el aviso dudoso, en vez de dirigirlo a un usuario reasignado.
 
 Una invocación del hook crea un nuevo `event_id`; una nueva atención también. Un reintento externo de un mismo payload debería conservar su `event_id`, pero este addon no implementa reintentos. El receptor debe tolerar duplicados. El payload omite CUIL y no depende de una sesión ni de una llamada previa al adaptador.
 
@@ -55,4 +55,4 @@ El CRM es responsable de presentar la ficha en el usuario receptor. Un `2xx` dem
 
 Activar `secrets_file` en `issabel_crm.conf` y editar `/etc/asterisk/issabel_crm_secrets.conf` (`root:asterisk`, `0640`). Tokens separados para GET y POST, sin credenciales en URL ni en argumentos de procesos. No versionar el archivo real.
 
-Los diagnósticos del addon contienen componente, resultado e identificador de interacción; no incluyen CUIL, tokens, cuerpos del CRM ni excepciones originales. AGI debug de Asterisk, captura de red o access logs del CRM pueden mostrar datos: usar sólo fixtures en el laboratorio y acordar la retención operativa al desplegar.
+Los diagnósticos del addon contienen componente, resultado, identificador de interacción y destino aprobado de consulta; no incluyen CUIL, tokens, cuerpos del CRM ni excepciones originales. AGI debug de Asterisk, captura de red o access logs del CRM pueden mostrar datos: usar sólo fixtures en el laboratorio y acordar la retención operativa al desplegar.
