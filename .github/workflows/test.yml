@@ -1,0 +1,36 @@
+name: CallFlow boundaries
+on:
+  push:
+    branches: [main, 'feat/callflow-*']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  python:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        python: ['3.6', '3.9', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Real JSON and AGI process boundaries
+        run: docker run --rm -v "$PWD:/project" -w /project python:${{ matrix.python }} python -m unittest discover -s tests -v
+  native-form:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        php: ['5.4', '8.2']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: openssl
+          coverage: none
+      - name: PHP syntax and native form boundary
+        run: |
+          php --version
+          python -m unittest discover -s tests -p test_web.py -v
