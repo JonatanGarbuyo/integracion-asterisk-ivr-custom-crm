@@ -58,10 +58,24 @@ class Lifecycle:
         if not identity.isdigit() or int(identity) == 0:
             raise RuntimeError('UID del usuario de servicio inválido')
         expected_uid = int(identity)
-        processes = command(['ps', '-eo', 'uid=,comm=']).splitlines()
+        # A remote CLI (asterisk -r/-R/-rx) shares the daemon's comm name,
+        # but runs under the console user's UID. Check the configured PID only.
+        settings = command([self.executable('asterisk'), '-rx', 'core show settings'])
+        pid_paths = re.findall(r'^\s*PID file:[ \t]*(/[^\r\n]+)', settings, re.M)
+        if len(pid_paths) != 1:
+            raise RuntimeError('No se pudo determinar el archivo PID del servicio Asterisk')
+        try:
+            pid_text = self.path(pid_paths[0].strip()).read_text().strip()
+        except OSError:
+            raise RuntimeError('No se pudo leer el archivo PID del servicio Asterisk')
+        if not re.fullmatch(r'[1-9][0-9]{0,9}', pid_text):
+            raise RuntimeError('Archivo PID del servicio Asterisk inválido')
+        daemon_pid = int(pid_text)
+        processes = [line.split() for line in command(['ps', '-eo', 'uid=,pid=,comm=']).splitlines()]
         for name in ['asterisk', 'httpd']:
-            observed = {int(line.split()[0]) for line in processes if len(line.split()) == 2 and
-                        line.split()[1] == name and line.split()[0].isdigit()}
+            observed = {int(row[0]) for row in processes if len(row) == 3 and
+                        row[2] == name and row[0].isdigit() and row[1].isdigit() and
+                        (name != 'asterisk' or int(row[1]) == daemon_pid)}
             workers = observed - {0} if name == 'httpd' else observed
             if not workers or workers != {expected_uid}:
                 values = ','.join(str(uid) for uid in sorted(observed)) or 'ninguno'

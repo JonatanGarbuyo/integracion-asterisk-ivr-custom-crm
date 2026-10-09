@@ -13,7 +13,7 @@ Crear ambas VM en VirtualBox sin conectarlas a la troncal del cliente. Usar red 
 
 ## Instalar directamente desde el repositorio
 
-La versión 0.2.3 instala un módulo nativo **PBX → CallFlow Hooks** y el puente IssabelPBX. No requiere transferir un `.tgz`. Usar únicamente la VM de laboratorio y conservar el snapshot anterior.
+La versión 0.2.4 instala un módulo nativo **PBX → CallFlow Hooks** y el puente IssabelPBX. No requiere transferir un `.tgz`. Usar únicamente la VM de laboratorio y conservar el snapshot anterior.
 
 Para construir desde el repo se requieren `git`, `rpm-build`, Python >=3.6, PHP >=5.4 y las herramientas habituales de Issabel. Si yum sigue consultando mirrorlist retirados de CentOS 7, usar la configuración temporal Vault ya utilizada para instalar Python; el instalador no modifica repositorios ni hace una actualización global.
 
@@ -35,11 +35,11 @@ Para preparar el RPM sin instalarlo:
 
 ### Descarga directa sin Git
 
-La prerelease de laboratorio `v0.2.3` distribuye el RPM y `manifest.json`. Para descargar e instalar sin Git ni herramientas de compilación:
+La prerelease de laboratorio `v0.2.4` distribuye el RPM y `manifest.json`. Para descargar e instalar sin Git ni herramientas de compilación:
 
 ```bash
-curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.3/tools/install.py -o /tmp/callflow-install.py
-sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.3
+curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.4/tools/install.py -o /tmp/callflow-install.py
+sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.4
 ```
 
 Esta modalidad requiere `rpm2cpio` y `cpio`, pero no `git` ni `rpmbuild` en la PBX. El workflow publica una prerelease de laboratorio después de las pruebas y la construcción del RPM, desde un tag coincidente o una rama `release/callflow-hooks-vX.Y.Z`. No certifica la instalación efectiva en la VM. El checksum detecta corrupción y se contrasta además la identidad del RPM; no equivale por sí solo a una firma de un editor independiente.
@@ -48,7 +48,7 @@ Esta modalidad requiere `rpm2cpio` y `cpio`, pero no `git` ni `rpmbuild` en la P
 
 El RPM coloca el formulario en `/var/www/html/modules/callflowhooks`, el puente en `/var/www/html/admin/modules/callflowhooks` y el backend/extensiones en `/usr/share/callflow-hooks`. Se registra menú/ACL mediante `issabel-menumerge`. Por defecto, el framework concede acceso al grupo administrador; los permisos adicionales se administran en Issabel y la actualización conserva sus decisiones.
 
-El paquete requiere que los procesos PHP/httpd y Asterisk usen el mismo usuario de servicio no root. Comprueba los procesos y el usuario configurado de la PBX; si difieren, detiene la instalación e informa la causa. La configuración usa directorio 0700 y archivo 0600 propiedad de ese usuario. Después del gestor PBX se restablecen esos permisos y propiedad root del código propio. No modificar Python del sistema ni deshabilitar SELinux para instalar; verificar los contextos efectivos desde web y llamada en la VM.
+El paquete requiere que los procesos PHP/httpd y Asterisk usen el mismo usuario de servicio no root. Consulta `core show settings` para localizar el archivo PID del servidor Asterisk y verifica el UID efectivo de ese PID; las consolas remotas `asterisk -r/-R/-rx` no se confunden con el servidor. Comprueba también los workers httpd y el usuario configurado de la PBX; si difieren, detiene la instalación e informa la causa. La configuración usa directorio 0700 y archivo 0600 propiedad de ese usuario. Después del gestor PBX se restablecen esos permisos y propiedad root del código propio. No modificar Python del sistema ni deshabilitar SELinux para instalar; verificar los contextos efectivos desde web y llamada en la VM.
 
 Repetir el instalador permite reinstalar/reparar la misma versión y actualizar desde un nuevo checkout o release. Conserva `profiles.conf` y sus secretos. Después de una instalación parcial, corregir la fase informada y repetir; no anunciar éxito hasta que el registro nativo, puente y metadatos coincidan.
 
@@ -69,4 +69,4 @@ El `.tgz` de `tools/build.py` sigue siendo únicamente un artefacto del puente I
 5. Para quitar el módulo, retirar primero referencias desde IVR/rutas, aplicar y esperar a que terminen llamadas en curso. Ejecutar `sudo rpm -e issabel-callflow-hooks`. El paquete rechaza referencias activas a destinos propios y llamadas en curso; retira el puente, regenera PBX y elimina su menú/ACL. Esa regeneración aplica los cambios PBX pendientes, por lo que deben revisarse antes de quitarlo. Si falla la recarga se conserva el código y se puede repetir tras corregir. Se borran únicamente destinos marcados como propios; se conserva .conf para reinstalar.
 6. Recuperar el snapshot de VM para la reversión completa del laboratorio. No usar desinstalación con llamadas activas como mecanismo de reversión de producción.
 
-El usuario confirmó instalación, menú/formulario nativo y guardado del perfil `example` en Issabel 4 con 0.2.2. Aplicar, llamadas y audio siguen pendientes. Un CI verde no confirma audio, permisos SELinux, menú de la distribución, cola ni proveedor real.
+El usuario confirmó instalación, menú/formulario nativo y guardado del perfil `example` en Issabel 4 con 0.2.2. El log posterior confirmó IVR → AGI → interno 101 atendido. El perfil estaba vinculado a la salida de opción inválida (`i`), por lo que la tecla 1 ingresó por esa salida: configurar una opción 1 explícita para probar el recorrido previsto. Audio y contingencia siguen pendientes. La actualización 0.2.3 falló antes de instalar al observar UID 0 y 997; la consola root es una hipótesis compatible, todavía sin inventario de PID de esa VM. Un CI verde no confirma audio, permisos SELinux, menú de la distribución, cola ni proveedor real.

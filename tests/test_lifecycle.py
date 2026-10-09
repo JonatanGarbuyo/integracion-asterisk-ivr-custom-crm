@@ -24,6 +24,9 @@ class PackageLifecycle(unittest.TestCase):
         self.configuration = self.root / 'etc/asterisk/callflow-hooks/profiles.conf'
         self.configuration.parent.mkdir(parents=True)
         self.configuration.write_text('; preserve-existing-credential\n')
+        self.pid_file = self.root / 'var/run/asterisk/asterisk.pid'
+        self.pid_file.parent.mkdir(parents=True)
+        self.pid_file.write_text('2597\n')
         core = self.root / 'usr/share/callflow-hooks'
         core.mkdir(parents=True)
         (core / 'version.json').write_text(json.dumps({'version':'0.2.0', 'release':'1', 'commit':'a'*40}))
@@ -40,7 +43,11 @@ with open(os.environ['BOUNDARY_LOG'],'a') as stream: stream.write(json.dumps([na
 if name=='rpm': print('4.0.0\\n2.11.0')
 elif name=='id': print('1001')
 elif name=='ps':
- if 'uid=,comm=' in sys.argv:
+ if 'uid=,pid=,comm=' in sys.argv:
+  print('1001 2574 httpd\\n'+os.environ.get('BOUNDARY_ASTERISK_UID','1001')+' 2597 asterisk\\n0 1034 httpd')
+  if os.environ.get('BOUNDARY_EXTRA_ROOT_ASTERISK'): print('0 8000 asterisk')
+  if os.environ.get('BOUNDARY_EXTRA_SERVICE_CONSOLE'): print('1001 8100 asterisk')
+ elif 'uid=,comm=' in sys.argv:
   print('1001 httpd\\n'+os.environ.get('BOUNDARY_ASTERISK_UID','1001')+' asterisk\\n0 httpd')
   if os.environ.get('BOUNDARY_EXTRA_ROOT_ASTERISK'): print('0 asterisk')
  elif os.environ.get('BOUNDARY_TRUNCATED_PS'):
@@ -69,7 +76,9 @@ elif name=='issabel-menumerge':
 elif name=='issabel-menuremove':
  if sys.argv[1]!='callflowhooks': sys.exit(1)
  data['menu']=False; data['acl']=False
-elif name=='asterisk': print('0 active channels\\n0 active calls')
+elif name=='asterisk':
+ if 'core show settings' in sys.argv: print('  PID file: '+os.environ.get('BOUNDARY_PID_PATH','/var/run/asterisk/asterisk.pid'))
+ else: print('0 active channels\\n0 active calls')
 state.write_text(json.dumps(data))
 '''.format(python=sys.executable)
         for name in ['rpm','ps','id','php','chown','module_admin','issabel-menumerge','issabel-menuremove','asterisk','amportal']:
@@ -111,10 +120,31 @@ state.write_text(json.dumps(data))
             self.assertIn('UID observados '+uid, result.stderr)
             self.assertFalse(json.loads(self.state.read_text())['enabled'])
 
-    def test_root_exception_applies_only_to_apache_parent(self):
-        result = self.lifecycle('preflight', BOUNDARY_EXTRA_ROOT_ASTERISK='1')
+    def test_remote_root_console_does_not_change_service_identity(self):
+        result = self.lifecycle('install', BOUNDARY_EXTRA_ROOT_ASTERISK='1')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(json.loads(self.state.read_text())['enabled'])
+        result = self.lifecycle('preflight', BOUNDARY_EXTRA_ROOT_ASTERISK='1', BOUNDARY_EXTRA_SERVICE_CONSOLE='1', BOUNDARY_ASTERISK_UID='0')
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn('UID observados 0,1001', result.stderr)
+        self.assertIn('UID observados 0', result.stderr)
+
+    def test_missing_invalid_or_stale_pid_file_never_installs(self):
+        for pid in ['0', '2597 extra', '8000', '2574']:
+            self.pid_file.write_text(pid)
+            result = self.lifecycle('install')
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse(json.loads(self.state.read_text())['enabled'])
+        self.pid_file.unlink()
+        self.assertNotEqual(self.lifecycle('install').returncode, 0)
+
+    def test_configured_pid_path_is_used_instead_of_default_location(self):
+        alternate = self.root/'run/custom-asterisk/service.pid'
+        alternate.parent.mkdir(parents=True)
+        alternate.write_text('2597\n')
+        self.pid_file.unlink()
+        result = self.lifecycle('preflight', BOUNDARY_PID_PATH='/run/custom-asterisk/service.pid')
+        self.assertEqual(result.returncode, 0, result.stderr)
+
 
     def test_partial_menu_failure_is_reported_and_can_be_repaired(self):
         result = self.lifecycle('install', BOUNDARY_MENU_FAIL='1')

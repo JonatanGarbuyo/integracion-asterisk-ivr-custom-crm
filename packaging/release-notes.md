@@ -1,14 +1,14 @@
 CallFlow Hooks: addon nativo de Issabel con perfiles genéricos, menú/ACL, puente IssabelPBX y handlers JSON desde un IVR normal.
 
-Corrección 0.2.3: desde la página nativa, el enlace Configuración PBX abre `/index.php?menu=pbxadmin`. El acceso alternativo IssabelPBX conserva su enlace propio. Al guardar, el mensaje identifica el destino que debe elegirse desde una opción de IVR normal: Custom Destinations → CallFlow Hooks: <identificador>. La guía detalla esa vinculación.
+Corrección 0.2.4: el preflight distingue el servidor Asterisk de sus consolas remotas. Consulta el archivo PID indicado por `core show settings` y comprueba el UID numérico de ese proceso, sin rechazar una consola `asterisk -rvvv` abierta como root. Un servidor con UID root/ajeno, PID ausente o inválido se sigue rechazando. Conserva las correcciones de enlace nativo, destinos y borradores anteriores.
 
-Conserva las mejoras 0.2.2 de errores y recuperación de borradores sin credenciales. Versión de laboratorio: el usuario confirmó instalación, menú y guardado del perfil `example` en Issabel 4 con 0.2.2. Aplicar configuración, llamadas/audio, ACL completos y SELinux permanecen pendientes. Issabel 5 requiere validación en VM; Afiliados CRM y respuesta de cola son entregas posteriores.
+Versión de laboratorio: el usuario confirmó guardado con 0.2.2 y aportó una llamada IVR → AGI → interno 101 atendido. La opción 1 entró por la salida inválida del IVR: configurar una opción explícita para validar el recorrido previsto. La actualización 0.2.3 falló antes de instalar por UID observados 0/997; que el proceso root fuera una consola aún necesita confirmarse en VM. Audio, contingencia, ACL completos e Issabel 5 siguen pendientes. Afiliados CRM y respuesta de cola son entregas posteriores.
 
 Instalar sin Git ni rpm-build (Python >=3.6, RPM, rpm2cpio y cpio):
 
 ```bash
-curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.3/tools/install.py -o /tmp/callflow-install.py
-sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.3
+curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.4/tools/install.py -o /tmp/callflow-install.py
+sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.4
 sudo /usr/sbin/callflow-hooksctl status
 ```
 
