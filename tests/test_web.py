@@ -61,3 +61,63 @@ class PBXForm(AdminBoundary, unittest.TestCase):
         self.assertFalse(self.config.exists())
         self.assertNotIn('private-token', rejected['html'])
 
+
+    def test_embedded_navigation_create_update_and_runtime(self):
+        import xml.etree.ElementTree as ET
+        metadata = ET.parse(str(ROOT/'module/module.xml')).getroot()
+        self.assertEqual(metadata.findtext('embedcategory'), 'Inbound Call Control')
+        form = self.web({'action':'view', 'surface':'embedded'})['html']
+        self.assertIn('class="rnav"', form)
+        self.assertIn('class="popover-form"', form)
+        self.assertIn('action="index.php?menu=pbxadmin', form)
+        self.assertIn('name="display" value="callflowhooks"', form)
+        post = dict(self.profile(), configuration_version=self.request('describe')['configuration_version'], csrf_token='test-token')
+        created = self.web({'action':'save', 'surface':'embedded', 'post':post})
+        self.assertIn('Custom Destinations', created['html'])
+        self.assertEqual(created['reloads'], 1)
+        listing = self.web({'action':'view', 'surface':'embedded'})['html']
+        self.assertIn('Nuevo perfil', listing)
+        self.assertNotIn('name="identifier"', listing)
+        edit = self.web({'action':'view', 'surface':'embedded', 'get':{'profile':'welcome'}})['html']
+        self.assertIn('id="current"', edit)
+        self.assertIn('Editar perfil: welcome', edit)
+        self.assertIn('<table>', edit)
+        post['configuration_version'] = self.request('describe')['configuration_version']
+        post['next_destination'] = 'ext-local,203,1'
+        post['settings']['api_token'] = ''
+        updated = self.web({'action':'save', 'surface':'embedded', 'post':post})
+        self.assertIn('Perfil actualizado', updated['html'])
+        self.assertNotIn('En el IVR, seleccionar', updated['html'])
+        self.assertEqual(updated['reloads'], 1)
+        variables, _, _ = call(self.config)
+        self.assertEqual(variables['CALLFLOW_NEXT_DESTINATION'], 'ext-local,203,1')
+        self.assertNotIn('private-token', updated['html'])
+
+    def test_embedded_framework_privilege_and_invalid_draft(self):
+        post = dict(self.profile(), configuration_version=self.request('describe')['configuration_version'], csrf_token='test-token')
+        for post_dispatch in (False, True):
+            denied = self.web({'action':'save','surface':'embedded','framework_denied':True,
+                               'post_dispatch':post_dispatch,'post':post})
+            self.assertIn('Acceso denegado', denied['html'])
+            self.assertFalse(self.config.exists())
+            self.assertFalse(denied['destinations'])
+        post['next_destination'] = '201'
+        failed = self.web({'action':'save','surface':'embedded','post':post})
+        self.assertIn('contexto,extensión,prioridad', failed['html'])
+        restored = self.web({'action':'view','surface':'embedded'})['html']
+        self.assertIn('name="next_destination" value="201"', restored)
+        self.assertIn('menu=pbxadmin', restored)
+        self.assertNotIn('private-token', restored)
+        self.assertFalse(self.config.exists())
+
+    def test_framework_identity_cannot_bypass_acl_via_unembedded_page(self):
+        post = dict(self.profile(), configuration_version=self.request('describe')['configuration_version'], csrf_token='test-token')
+        # AMP_user still permits all sections as in the Issabel 4 wrapper.
+        for rejected in ({'framework_denied':True}, {'missing_framework_acl':True}):
+            result = self.web(dict(action='save', surface='framework_direct', post=post, **rejected))
+            self.assertIn('Acceso denegado', result['html'])
+            self.assertFalse(self.config.exists())
+            self.assertFalse(result['destinations'])
+        allowed = self.web({'action':'save','surface':'framework_direct','post':post})
+        self.assertIn('callflow-profile-welcome,s,1', allowed['destinations'])
+        self.assertIn('action="config.php?display=callflowhooks', allowed['html'])

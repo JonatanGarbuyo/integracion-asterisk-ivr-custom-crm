@@ -1,17 +1,23 @@
-CallFlow Hooks: addon nativo de Issabel con perfiles genéricos, menú/ACL, puente IssabelPBX y handlers JSON desde un IVR normal.
+CallFlow Hooks 0.2.5: administración integrada en PBX Configuration → Inbound Call Control.
 
-Corrección 0.2.4: el preflight distingue el servidor Asterisk de sus consolas remotas. Consulta el archivo PID indicado por `core show settings` y comprueba el UID numérico de ese proceso, sin rechazar una consola `asterisk -rvvv` abierta como root. Un servidor con UID root/ajeno, PID ausente o inválido se sigue rechazando. Conserva las correcciones de enlace nativo, destinos y borradores anteriores.
+- Menú junto a IVR y Call Flow Control, en el contexto del botón habitual Aplicar cambios.
+- Navegación de perfiles a la derecha, vista inicial con Agregar perfil, formulario de creación/edición por secciones y ayudas junto a las etiquetas, siguiendo el diseño del IVR.
+- Al crear se indica cómo vincular el Custom Destination. Al editar se informa Perfil actualizado.
+- Con sesión Issabel, permisos del framework además de la sección PBX, incluso sin embeber; credenciales y borradores conservan sus protecciones.
+- El acceso anterior PBX → CallFlow Hooks sigue disponible con enlace a la nueva ubicación. Se conservan perfiles, destinos y backend compartido.
 
-Versión de laboratorio: el usuario confirmó guardado con 0.2.2 y aportó una llamada IVR → AGI → interno 101 atendido. La opción 1 entró por la salida inválida del IVR: configurar una opción explícita para validar el recorrido previsto. La actualización 0.2.3 falló antes de instalar por UID observados 0/997; que el proceso root fuera una consola aún necesita confirmarse en VM. Audio, contingencia, ACL completos e Issabel 5 siguen pendientes. Afiliados CRM y respuesta de cola son entregas posteriores.
+Guardar sigue reemplazando el .conf que leen las nuevas ejecuciones AGI. Aplicar cambios regenera el dialplan PBX; esta versión no incorpora configuración pendiente/activa ni recarga automática.
+
+El usuario confirmó instalación de 0.2.4 y llamada por opción 1 explícita → AGI → interno 101 atendido. El nuevo menú/diseño aún requiere comprobación en su VM. Audio, contingencia, ACL instalados completos e Issabel 5 siguen pendientes. Afiliados CRM y respuesta de cola son entregas posteriores.
 
 Instalar sin Git ni rpm-build (Python >=3.6, RPM, rpm2cpio y cpio):
 
 ```bash
-curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.4/tools/install.py -o /tmp/callflow-install.py
-sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.4
+curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.5/tools/install.py -o /tmp/callflow-install.py
+sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.5
 sudo /usr/sbin/callflow-hooksctl status
 ```
 
-El instalador descarga el RPM y manifiesto, comprueba versión, commit y SHA256, valida dependencias y comprueba el estado final. Conserva perfiles existentes. Después de instalar, abrir PBX → CallFlow Hooks, revisar destinos y aplicar configuración desde PBX.
+El instalador comprueba versión, commit y SHA256 y conserva perfiles. Abrir PBX → PBX Configuration → Inbound Call Control → CallFlow Hooks, revisar y usar Aplicar cambios.
 
-Para preparar únicamente la descarga: agregar `--prepare-only --output /tmp/callflow-rpm` al comando del instalador, sin ejecutar la instalación.
+Para preparar únicamente la descarga: agregar `--prepare-only --output /tmp/callflow-rpm`, sin instalar.

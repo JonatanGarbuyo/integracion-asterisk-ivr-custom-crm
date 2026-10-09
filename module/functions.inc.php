@@ -143,21 +143,25 @@ function callflowhooks_post_fields($fields, $source) {
 }
 
 function callflowhooks_field($name, $field, $value, $error = '') {
+    $id = 'callflowhooks-'.preg_replace('/[^A-Za-z0-9_-]/', '-', $name);
     $name = callflowhooks_escape($name);
     $label = callflowhooks_escape($field['label']);
-    echo '<p><label>'.$label.' ';
+    echo '<tr><td><label for="'.$id.'">'.$label.'</label>';
+    if (isset($field['help'])) echo '<span class="help">?<span>'.callflowhooks_escape($field['help']).'</span></span>';
+    echo '</td><td>';
     if ($field['type'] === 'choice') {
-        echo '<select name="'.$name.'">';
+        echo '<select name="'.$name.'" id="'.$id.'"'.($error ? ' aria-invalid="true"' : '').'>';
         foreach ($field['options'] as $option) {
             echo '<option value="'.callflowhooks_escape($option).'"'.($option === $value ? ' selected' : '').'>'.callflowhooks_escape($option).'</option>';
         }
         echo '</select>';
     } elseif ($field['type'] === 'boolean') {
-        echo '<input type="checkbox" name="'.$name.'" value="1"'.($value ? ' checked' : '').'>';
+        echo '<input type="checkbox" name="'.$name.'" value="1" id="'.$id.'"'.($value ? ' checked' : '').'>';
     } else {
         $type = $field['type'] === 'secret' ? 'password' : ($field['type'] === 'integer' ? 'number' : 'text');
         // Credentials are write-only in the form. Blank preserves a stored value.
-        echo '<input type="'.$type.'" name="'.$name.'" value="'.($type === 'password' ? '' : callflowhooks_escape($value)).'"';
+        echo '<input type="'.$type.'" name="'.$name.'" value="'.($type === 'password' ? '' : callflowhooks_escape($value)).'" id="'.$id.'"';
+        if ($type === 'text' || $type === 'password') echo ' size="35"';
         if ($error) echo ' aria-invalid="true"';
         if (!empty($field['required']) && $type !== 'password') echo ' required';
         foreach (array('minimum'=>'min', 'maximum'=>'max', 'max_length'=>'maxlength') as $key=>$attribute) {
@@ -166,9 +170,19 @@ function callflowhooks_field($name, $field, $value, $error = '') {
         echo '>';
         if ($type === 'password') echo ' (vacío conserva la credencial)';
     }
-    echo '</label></p>';
-    if (isset($field['help'])) echo '<p>'.callflowhooks_escape($field['help']).'</p>';
+
     if ($error) echo '<p role="alert">'.$label.': '.callflowhooks_escape($error).'</p>';
+    echo '</td></tr>';
+}
+
+function callflowhooks_section($title) {
+    echo '<tr><td colspan="2"><h5>'.callflowhooks_escape($title).'</h5><hr></td></tr>';
+}
+
+function callflowhooks_form_hidden($configuration, $embedded) {
+    $values = array('csrf_token'=>$_SESSION['callflowhooks_csrf'], 'configuration_version'=>$configuration['configuration_version'], 'display'=>'callflowhooks', 'type'=>'setup');
+    if ($embedded) $values['menu'] = 'pbxadmin';
+    foreach ($values as $name=>$value) echo '<input type="hidden" name="'.$name.'" value="'.callflowhooks_escape($value).'">';
 }
 
 function callflowhooks_draft_value($value) {

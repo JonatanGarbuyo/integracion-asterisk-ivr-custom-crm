@@ -134,7 +134,7 @@ def main():
             command(['rpm','-Uvh','--replacepkgs',str(package)])
             command(['callflow-hooksctl','status'], lifecycle_diagnostics=True)
         print(json.dumps(dict(manifest, installed=not args.prepare_only), sort_keys=True))
-        if not args.prepare_only: print('Abrir PBX → CallFlow Hooks. Revisar destinos y aplicar configuración desde PBX.')
+        if not args.prepare_only: print('Abrir PBX → PBX Configuration → Inbound Call Control → CallFlow Hooks. Revisar destinos y aplicar configuración desde PBX.')
     except (RuntimeError, OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
         print('No se completó la instalación: '+(str(error) if isinstance(error,RuntimeError) else 'error de descarga, formato o herramienta'),file=sys.stderr)
         return 1

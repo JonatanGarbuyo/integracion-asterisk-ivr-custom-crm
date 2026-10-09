@@ -17,6 +17,7 @@ if (file_exists($sessionFile)) {
 }
 $_SERVER['REQUEST_METHOD'] = $request['action'] === 'save' ? 'POST' : 'GET';
 $_POST = isset($request['post']) ? $request['post'] : array();
+$_SERVER['SCRIPT_NAME'] = '/admin/config.php';
 $_GET = array();
 if (isset($request['get'])) $_GET = $request['get'];
 $registry = CFH_CONFIGURATION_FILE.'.registry';
@@ -46,6 +47,20 @@ if (isset($request['surface']) && $request['surface'] === 'native') {
     require dirname(__DIR__).'/native/index.php';
     $html = _moduleContent($smarty, 'callflowhooks');
 } else {
+    if (isset($request['surface']) && in_array($request['surface'], array('embedded', 'framework_direct'), true)) {
+        class EmbeddedBoundaryACL {
+            function hasModulePrivilege($user, $module, $section) {
+                return $user === 'administrator' && $module === 'pbxadmin' && $section === 'callflowhooks' && empty($GLOBALS['request']['framework_denied']);
+            }
+        }
+        $pACL = new EmbeddedBoundaryACL();
+        $_SESSION['issabel_user'] = 'administrator';
+        if ($request['surface'] === 'embedded') {
+            $_SERVER['SCRIPT_NAME'] = '/index.php';
+            if (empty($request['post_dispatch'])) $_GET['menu'] = 'pbxadmin';
+        }
+        if (!empty($request['missing_framework_acl'])) unset($pACL);
+    }
     ob_start();
     include dirname(__DIR__).'/module/page.callflowhooks.php';
     $html = ob_get_clean();

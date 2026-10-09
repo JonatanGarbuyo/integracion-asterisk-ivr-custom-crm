@@ -1,17 +1,19 @@
 # Administración nativa e instalación desde el repositorio
 
-Diseño de la corrección de la primera entrega, ticket [#21](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/21). La versión 0.2.4 implementa este diseño con pruebas en fronteras simuladas y construcción RPM real. Se distribuye como prerelease de laboratorio; la VM Issabel 4 confirmó instalación y menú nativo con 0.2.1; 0.2.2 confirmó guardado desde la web; el log posterior confirmó dialplan aplicado, AGI y atención en 101; ACL completos, audio, contingencia y la VM Issabel 5 siguen pendientes. La especificación y los tickets de GitHub siguen siendo canónicos.
+Diseño de la corrección de la primera entrega, ticket [#21](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/21). La versión 0.2.5 implementa este diseño con pruebas en fronteras simuladas y construcción RPM real. Se distribuye como prerelease de laboratorio; la VM Issabel 4 confirmó instalación y menú nativo con 0.2.1; 0.2.2 confirmó guardado desde la web; el log posterior confirmó dialplan aplicado, AGI y atención en 101; ACL completos, audio, contingencia y la VM Issabel 5 siguen pendientes. La especificación y los tickets de GitHub siguen siendo canónicos.
 
 ## Componentes
 
 | Componente | Responsabilidad | Ubicación prevista |
 |---|---|---|
-| Módulo nativo Issabel | Formulario, sesión, ACL y CSRF | `/var/www/html/modules/callflowhooks/` |
-| Adaptador IssabelPBX | Custom Destinations y generación del dialplan | `/var/www/html/admin/modules/callflowhooks/` |
+| Acceso nativo Issabel anterior | Compatibilidad, sesión y ACL | `/var/www/html/modules/callflowhooks/` |
+| Módulo IssabelPBX integrado | Formulario, Custom Destinations y generación del dialplan | `/var/www/html/admin/modules/callflowhooks/` |
 | Núcleo y extensiones | Administración JSON, ejecución AGI y handlers | `/usr/share/callflow-hooks/` |
 | Configuración | Fuente compartida entre formulario, CLI y llamadas | `/etc/asterisk/callflow-hooks/profiles.conf` |
 
-Un RPM instala los componentes juntos. La interfaz principal será **PBX → CallFlow Hooks**, mediante un módulo propio del framework y registro `menu.xml`/`issabel-menumerge`. El adaptador PBX sigue participando en la generación de configuración habitual. El RPM instala el núcleo en la ruta compartida; el `.tgz` conserva la estructura anterior del puente. La actualización deberá cambiar las referencias AGI sin perder perfiles ni destinos propios.
+Un RPM instala los componentes juntos. Desde 0.2.5, por solicitud del usuario, la interfaz principal es **PBX → PBX Configuration → Inbound Call Control → CallFlow Hooks**. `category`/`embedcategory` registran esa categoría en el menú PBX; no se modifica el editor del IVR ni se añade un menú mediante JavaScript. El shell normal muestra Aplicar cambios y el módulo marca `needreload` al guardar/sincronizar. El acceso nativo anterior conserva `menu.xml`, ACL y formulario con un enlace a la nueva ubicación, para una actualización compatible. En Issabel 4 embebido se comprueba además `hasModulePrivilege` del framework, porque su wrapper construye `AMP_user` como admin. La sección PBX se comprueba en todos los accesos PBX. Si existe una sesión Issabel, se exige además su permiso de módulo incluso sin embeber, para no confiar en un AMP admin heredado. Cuando falta el ACL del framework se deniega y se indica abrir desde Configuración PBX de Issabel. Un login PBX independiente sin sesión Issabel conserva su control de sección. Ambos accesos comparten formulario y backend. El RPM instala el núcleo compartido; el `.tgz` conserva sólo la estructura del puente.
+
+Guardar valida y reemplaza el .conf que consumen nuevas ejecuciones AGI. Aplicar regenera el dialplan; no se agrega configuración pendiente/activa ni recarga automática en esta corrección de menú y diseño.
 
 La investigación [del registro nativo](research/addon-nativo-issabel.md) respalda los mecanismos; las versiones exactas instaladas se comprueban en laboratorio. No se modifica el editor de IVR ni se mantiene un fork de éste.
 
