@@ -1,7 +1,7 @@
 <module>
   <rawname>callflowhooks</rawname>
   <name>CallFlow Hooks</name>
-  <version>0.2.5</version>
+  <version>0.2.6</version>
   <publisher>CallFlow Hooks contributors</publisher>
   <license>GPLv3+</license>
   <licenselink>https://www.gnu.org/licenses/gpl-3.0.html</licenselink>

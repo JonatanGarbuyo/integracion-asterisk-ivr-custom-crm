@@ -23,6 +23,7 @@ if (isset($request['get'])) $_GET = $request['get'];
 $registry = CFH_CONFIGURATION_FILE.'.registry';
 $destinations = file_exists($registry) ? json_decode(file_get_contents($registry), true) : array();
 $reloads = 0;
+if (!empty($request['pbx_widgets'])) require dirname(__FILE__).'/pbx_selectors_boundary.php';
 if (empty($request['bootstrap'])) require dirname(__FILE__).'/pbx_api_boundary.php';
 else define('CFH_PBX_CONFIGURATION_FILE', dirname(__FILE__).'/pbx_bootstrap_boundary.php');
 class BoundaryDialplan {

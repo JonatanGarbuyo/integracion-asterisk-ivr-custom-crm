@@ -15,12 +15,12 @@ DESTINATION = re.compile(r'^[A-Za-z0-9_-]{1,80},[A-Za-z0-9_*#-]{1,80},[1-9][0-9]
 VARIABLE = re.compile(r'^[A-Za-z][A-Za-z0-9_]{0,79}$')
 CORE_FIELDS = {
     'enabled': {'type': 'boolean', 'label': 'Habilitado', 'default': True},
-    'next_destination': {'type': 'string', 'label': 'Destino siguiente (contexto,extensión,prioridad)', 'required': True, 'max_length': 170, 'help': 'Ejemplo para un interno: ext-local,201,1.'},
-    'fallback_destination': {'type': 'string', 'label': 'Destino de contingencia', 'required': True, 'max_length': 170, 'help': 'Ejemplo para un interno: ext-local,202,1.'},
+    'next_destination': {'type': 'string', 'label': 'Destino siguiente', 'required': True, 'max_length': 170, 'help': 'Seleccionar un destino de PBX o ingresar contexto,extensión,prioridad en modo manual. Ejemplo: ext-local,201,1.'},
+    'fallback_destination': {'type': 'string', 'label': 'Destino de contingencia', 'required': True, 'max_length': 170, 'help': 'Destino ante error o perfil deshabilitado. Seleccionar de PBX o ingresar contexto,extensión,prioridad. Ejemplo: ext-local,202,1.'},
     'execution_budget_ms': {'type': 'integer', 'label': 'Límite del handler (ms)', 'default': 1000, 'minimum': 50, 'maximum': 5000},
     'input_source': {'type': 'choice', 'label': 'Fuente de entrada', 'default': 'none', 'options': ['none', 'dtmf', 'callerid', 'channel']},
     'input_variable': {'type': 'string', 'label': 'Variable de entrada del canal', 'default': '', 'max_length': 80},
-    'input_prompt': {'type': 'string', 'label': 'Audio para solicitar dígitos', 'default': '', 'max_length': 100},
+    'input_prompt': {'type': 'string', 'label': 'Audio para solicitar dígitos', 'default': '', 'max_length': 100, 'help': 'Grabación simple de System Recordings para solicitar DTMF. Sin audio omite el mensaje. En modo manual, usar un nombre relativo sin extensión, por ejemplo custom/bienvenido.'},
     'input_max_digits': {'type': 'integer', 'label': 'Máximo de dígitos', 'default': 20, 'minimum': 1, 'maximum': 40},
     'input_timeout_ms': {'type': 'integer', 'label': 'Tiempo para ingresar dígitos (ms)', 'default': 5000, 'minimum': 100, 'maximum': 15000}
 }

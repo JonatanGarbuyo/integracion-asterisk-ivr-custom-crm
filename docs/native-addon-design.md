@@ -1,6 +1,6 @@
 # Administración nativa e instalación desde el repositorio
 
-Diseño de la corrección de la primera entrega, ticket [#21](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/21). La versión 0.2.5 implementa este diseño con pruebas en fronteras simuladas y construcción RPM real. Se distribuye como prerelease de laboratorio; la VM Issabel 4 confirmó instalación y menú nativo con 0.2.1; 0.2.2 confirmó guardado desde la web; el log posterior confirmó dialplan aplicado, AGI y atención en 101; ACL completos, audio, contingencia y la VM Issabel 5 siguen pendientes. La especificación y los tickets de GitHub siguen siendo canónicos.
+Diseño de la corrección de la primera entrega, ticket [#21](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/21). La versión 0.2.6 implementa este diseño con pruebas en fronteras simuladas y construcción RPM real. Se distribuye como prerelease de laboratorio; la VM Issabel 4 confirmó instalación y menú nativo con 0.2.1; 0.2.2 confirmó guardado desde la web; el log posterior confirmó dialplan aplicado, AGI y atención en 101; ACL completos, audio, contingencia y la VM Issabel 5 siguen pendientes. La especificación y los tickets de GitHub siguen siendo canónicos.
 
 ## Componentes
 
@@ -20,7 +20,7 @@ La investigación [del registro nativo](research/addon-nativo-issabel.md) respal
 ## Interfaz administrativa
 
 - Listar perfiles y su estado, crear/editar un perfil y descubrir extensiones instaladas.
-- Generar campos desde el mismo esquema que consume el administrador JSON existente.
+- Generar campos desde el mismo esquema que consume el administrador JSON existente. En 0.2.6, reutilizar los selectores estándar PBX para los dos destinos y el catálogo System Recordings para el audio DTMF, con opción manual y sin modificar el esquema .conf/runtime. Ver [APIs verificadas](research/selectores-pbx.md).
 - Mantener la misma configuración `.conf`, validación, control de versión y tratamiento de secretos.
 - Guardar y sincronizar únicamente Custom Destinations propios mediante el adaptador PBX.
 - Mostrar el destino que debe seleccionarse en el IVR normal y si hay cambios pendientes de aplicar mediante el flujo PBX habitual.

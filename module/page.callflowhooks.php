@@ -64,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $submitted['identifier'] = isset($_POST['identifier']) ? $_POST['identifier'] : '';
             $submitted['extension'] = $extension['identifier'];
             $submitted['settings'] = callflowhooks_post_fields($extension['fields'], isset($_POST['settings']) && is_array($_POST['settings']) ? $_POST['settings'] : array());
+            callflowhooks_resolve_selectors($submitted, $_POST);
             $updating = false;
             foreach ($configuration['profiles'] as $item) {
                 if ($item['identifier'] === $submitted['identifier']) $updating = true;
@@ -146,7 +147,9 @@ echo '</td></tr>';
 foreach ($configuration['core_fields'] as $name=>$field) {
     if ($name === 'next_destination') callflowhooks_section('Enrutamiento y ejecución');
     if ($name === 'input_source') callflowhooks_section('Entrada del handler');
-    callflowhooks_field($name, $field, $selected ? $selected[$name] : (isset($field['default']) ? $field['default'] : ''), isset($fields[$name]) ? $fields[$name] : '');
+    $renderer = in_array($name, array('next_destination', 'fallback_destination'), true) ? 'callflowhooks_destination_field' :
+        ($name === 'input_prompt' ? 'callflowhooks_recording_field' : 'callflowhooks_field');
+    $renderer($name, $field, $selected ? $selected[$name] : (isset($field['default']) ? $field['default'] : ''), isset($fields[$name]) ? $fields[$name] : '');
 }
 callflowhooks_section('Opciones de '.$extension['title']);
 foreach ($extension['fields'] as $name=>$field) {
@@ -156,3 +159,5 @@ foreach ($extension['fields'] as $name=>$field) {
 echo '<tr><td colspan="2"><h6><button type="submit">Guardar perfil</button> <button name="synchronize" value="1" type="submit" formnovalidate>Sincronizar destinos de .conf</button>';
 if ($draft) echo ' <button name="discard_draft" value="1" type="submit" formnovalidate>Descartar borrador</button>';
 echo '</h6></td></tr></table></form>';
+
+callflowhooks_selector_script();

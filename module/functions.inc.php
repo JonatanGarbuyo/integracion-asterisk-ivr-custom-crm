@@ -145,10 +145,7 @@ function callflowhooks_post_fields($fields, $source) {
 function callflowhooks_field($name, $field, $value, $error = '') {
     $id = 'callflowhooks-'.preg_replace('/[^A-Za-z0-9_-]/', '-', $name);
     $name = callflowhooks_escape($name);
-    $label = callflowhooks_escape($field['label']);
-    echo '<tr><td><label for="'.$id.'">'.$label.'</label>';
-    if (isset($field['help'])) echo '<span class="help">?<span>'.callflowhooks_escape($field['help']).'</span></span>';
-    echo '</td><td>';
+    callflowhooks_field_open($field, $id);
     if ($field['type'] === 'choice') {
         echo '<select name="'.$name.'" id="'.$id.'"'.($error ? ' aria-invalid="true"' : '').'>';
         foreach ($field['options'] as $option) {
@@ -171,7 +168,17 @@ function callflowhooks_field($name, $field, $value, $error = '') {
         if ($type === 'password') echo ' (vacío conserva la credencial)';
     }
 
-    if ($error) echo '<p role="alert">'.$label.': '.callflowhooks_escape($error).'</p>';
+    callflowhooks_field_close($field, $error);
+}
+
+function callflowhooks_field_open($field, $id) {
+    echo '<tr><td><label for="'.callflowhooks_escape($id).'">'.callflowhooks_escape($field['label']).'</label>';
+    if (isset($field['help'])) echo '<span class="help">?<span>'.callflowhooks_escape($field['help']).'</span></span>';
+    echo '</td><td>';
+}
+
+function callflowhooks_field_close($field, $error) {
+    if ($error) echo '<p role="alert">'.callflowhooks_escape($field['label']).': '.callflowhooks_escape($error).'</p>';
     echo '</td></tr>';
 }
 
@@ -203,3 +210,5 @@ function callflowhooks_public_draft($profile, $core, $extension) {
     }
     return array('profile'=>$draft, 'secret_retry'=>$secretRetry);
 }
+
+require_once dirname(__FILE__).'/pbx-selectors.php';
