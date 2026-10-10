@@ -39,7 +39,7 @@ class GateContract(unittest.TestCase):
             self.assertIn('*web.py', php[-1])
             self.assertIn('test_pbx_state.py', php[-1])
             self.assertTrue(all(str(workspace)+':/project:ro' in command for command in docker))
-            self.assertTrue(all('/project/artifacts:rw,mode=1777' in command for command in docker))
+            self.assertTrue(all('/project/artifacts:rw,exec,mode=1777' in command for command in docker))
 
     def test_nonroot_runner_uses_noninteractive_sudo_for_lifecycle_suite(self):
         with tempfile.TemporaryDirectory() as directory:

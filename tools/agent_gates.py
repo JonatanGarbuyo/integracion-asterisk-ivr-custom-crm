@@ -34,7 +34,7 @@ def commands(workspace):
     checks.append([sys.executable, 'tools/build-rpm.py'])
     for version in ('3.6', '3.9', '3.12'):
         checks.append(['docker', 'run', '--rm', '-v', str(workspace)+':/project:ro',
-                       '--tmpfs', '/project/artifacts:rw,mode=1777', '-w', '/project',
+                       '--tmpfs', '/project/artifacts:rw,exec,mode=1777', '-w', '/project',
                        'python:'+version] + suite_command('python'))
     # PHP8.2's official Debian image needs Python for our real backend boundaries.
     # Tests run as nobody so the permission-denied case is actually exercised.
@@ -45,7 +45,7 @@ def commands(workspace):
     for pattern in ('*web.py', 'test_pbx_state.py'):
         php_checks += 'su -s /bin/sh nobody -c ' + shlex.quote(shlex.join(suite_command('python3', pattern))) + '; '
     checks.append(['docker', 'run', '--rm', '-v', str(workspace)+':/project:ro',
-                   '--tmpfs', '/project/artifacts:rw,mode=1777', '-w', '/project',
+                   '--tmpfs', '/project/artifacts:rw,exec,mode=1777', '-w', '/project',
                    'php:8.2-cli', 'sh', '-c', php_checks])
     return checks
 
