@@ -1,0 +1,7 @@
+#!/usr/bin/python3
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / 'usr/lib/issabel-crm'))
+from issabel_crm.__main__ import main
+sys.argv = [sys.argv[0], 'identify']
+main()

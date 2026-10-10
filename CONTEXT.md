@@ -21,3 +21,11 @@ Identificador telefónico de la PBX desde el que un operador recibe llamadas. Su
 
 **Ficha del afiliado**:
 Información del afiliado registrado que el CRM presenta al operador durante la atención.
+
+**Interacción de atención**:
+Recorrido de una persona por la identificación y el destino de atención seleccionado. Puede incluir una o varias respuestas de operadores.
+_Avoid_: Atención, llamada, evento como sinónimos indistintos de interacción.
+
+**Respuesta de un miembro de cola**:
+Momento en que un miembro responde a una llamada ofrecida por la cola. Cada respuesta pertenece a una interacción de atención y tiene identidad propia.
+_Avoid_: Oferta de llamada, conversación establecida como sinónimos de respuesta.

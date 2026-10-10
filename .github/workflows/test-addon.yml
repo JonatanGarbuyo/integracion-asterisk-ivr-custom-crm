@@ -1,0 +1,48 @@
+name: Probar y empaquetar addon
+on:
+  push:
+    branches: ['main', 'feat/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        python: ['3.9', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m unittest discover -v
+      - run: python -m compileall -q issabel_crm tools lab
+  legacy-runtime:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probar runtime Python 3.6 sin dependencias externas
+        run: docker run --rm -v "$PWD:/work" -w /work python:3.6.15-slim-buster python -m unittest discover -v
+  package:
+    needs: [tests, legacy-runtime]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python tools/build.py
+      - name: Construir RPM con payload gzip para sistemas anteriores
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+          mkdir -p "$PWD/rpmbuild"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+          cp dist/issabel-crm-0.1.1.tar.gz rpmbuild/SOURCES/
+          rpmbuild -bb --nodeps --define "_topdir $PWD/rpmbuild" --define '_binary_payload w9.gzdio' packaging/issabel-crm.spec
+          cp rpmbuild/RPMS/noarch/*.rpm dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: issabel-crm-addon
+          path: dist/*
