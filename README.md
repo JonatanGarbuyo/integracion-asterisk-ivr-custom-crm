@@ -1,16 +1,21 @@
-# Integración Asterisk IVR ↔ CRM
+# CallFlow Hooks
 
-Identificación de afiliados por CUIL, consulta de obra social, enrutamiento a cola/0800 y aviso stateless del operador que respondió. Soporte objetivo: Issabel 4/Asterisk 16 e Issabel 5/Asterisk 18, pendiente de comprobar en las instalaciones reales.
+Addon extensible para Issabel: un IVR normal selecciona un perfil que ejecuta un handler local JSON y continúa a un destino aprobado. Afiliados CRM será el primer caso de uso comercial.
 
-Estado: especificación y planificación publicadas; implementación de PBX aún no iniciada.
+La versión 0.2.7 en revisión incluye administración integrada **PBX → PBX Configuration → Inbound Call Control → CallFlow Hooks**, sesión/ACL de Issabel, formulario generado por esquema, perfiles independientes, .conf compartido con edición manual, destinos automáticos, entradas none/CallerID/DTMF/variable de canal, contexto por llamada y ejecución con presupuesto/contingencia. Un RPM distribuye el puente IssabelPBX, el backend compartido; retira el acceso nativo anterior. El formulario sigue el diseño del IVR, con navegación lateral y creación/edición por secciones; reutiliza destinos PBX y System Recordings para el audio DTMF, con popovers PBX y conservación de valores actuales del .conf. El instalador permite usar un checkout fijado o descargar un RPM de una release publicada. La VM Issabel 4 confirmó instalación y menú nativo con 0.2.1; 0.2.2 confirmó guardado desde la web; el log posterior confirmó IVR → AGI → interno 101 atendido; audio y contingencia siguen pendientes; ver [laboratorio](docs/laboratory.md) y [diseño](docs/native-addon-design.md). Se revisa en [PR #30](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/pull/30).
 
-- [Mapa Wayfinder: integración IVR y colas Issabel ↔ CRM](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/1).
-- [Especificación: integración IVR y colas Issabel ↔ CRM](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/2).
-- [Entregas y dependencias](docs/planning/index.md).
-- [Primera llamada completa con CRM simulado](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/11): punto de partida con una PBX de laboratorio y CRM simulado.
-- [Investigación técnica](docs/research/mecanismos-asterisk.md).
-- [Vocabulario](CONTEXT.md).
+- [Contrato del handler](docs/contracts/handler-v1.md).
+- [Configuración y extensiones](docs/configuration.md).
+- [Paquete y laboratorio](docs/laboratory.md).
+- [Mapa Wayfinder](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/1), [especificación](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/2) y [entregas](docs/planning/index.md).
+- [Investigación de Asterisk e Issabel](docs/research/mecanismos-asterisk.md).
 
-La consulta del IVR espera una respuesta acotada. El aviso desde Queue sale fuera del AGI sin esperar al CRM, sin sesión ni persistencia de notificaciones. La configuración operativa se mantiene en .conf custom; DNI y formulario web son ampliaciones opcionales.
+```bash
+python3 -m unittest discover -s tests -v
+python3 tools/build.py
+python3 tools/build-rpm.py  # requiere rpmbuild y checkout limpio
+```
 
-Para continuar con las skills, seguir [AGENTS.md](AGENTS.md). Las relaciones de issues se conservan mediante el [workflow de planificación](.github/workflows/sync-planning.yml).
+CI ejecuta procesos JSON/AGI e instaladores con Python 3.6, 3.9 y 3.12, y los formularios reales PHP con 5.4 y 8.2, simulando las fronteras de Issabel/GitHub/herramientas del sistema. Un job separado construye e inspecciona el RPM real. Sin PHP o RPM locales, las respectivas pruebas se omiten y son obligatorias en sus jobs CI. La publicación desde un tag o rama de release coincidente con `packaging/version.json` ejecuta pruebas y publica RPM/manifiesto como prerelease de laboratorio. La modalidad `--release v0.2.7` permite instalar sin Git ni herramientas de compilación en la PBX; ver los comandos en [laboratorio](docs/laboratory.md#descarga-directa-sin-git).
+
+Objetivos de instalación: **Issabel 4/Asterisk 11.25.3/CentOS 7.9/IssabelPBX 2.11.0-48** e Issabel 5/Asterisk 18. Compatibilidad efectiva, audio y regeneración se validarán en VM. La integración de Afiliados y el hook opcional al responder cola pertenecen a las siguientes entregas; esta versión no los instala.

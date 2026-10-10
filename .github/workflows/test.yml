@@ -1,0 +1,53 @@
+name: CallFlow boundaries
+on:
+  push:
+    branches: [main, 'feat/callflow-*']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  python:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        python: ['3.6', '3.9', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - name: Real JSON and AGI process boundaries
+        run: docker run --rm -v "$PWD:/project" -w /project python:${{ matrix.python }} python -m unittest discover -s tests -v
+  native-form:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['5.4', '8.2']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: openssl
+          coverage: none
+      - name: PHP syntax and native form boundary
+        run: |
+          php --version
+          find module native packaging -name '*.php' -exec php -l {} \;
+          python -m unittest discover -s tests -p '*web.py' -v
+          python -m unittest discover -s tests -p test_pbx_state.py -v
+  rpm:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and inspect noarch package
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+          python3 -m unittest discover -s tests -p test_package.py -v
+          python3 tools/build-rpm.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: callflow-hooks-rpm
+          path: dist/rpm/*

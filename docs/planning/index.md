@@ -8,7 +8,7 @@ Las issues son canónicas. Este índice enlaza las entregas y sus relaciones sin
 
 ## Estado
 
-**Planificación aprobada; implementación pausada.** Publicar tickets no autoriza escribir código, mergear el prototipo ni desplegar. Los tickets activos conservan `needs-info` mientras falte autorización explícita de ejecución y/o sus dependencias y accesos.
+**Primera entrega autorizada y en revisión en [PR #30](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/pull/30).** Las demás entregas conservan sus dependencias y estado; la publicación de tickets no autoriza desplegar en producción.
 
 ## Entregas aprobadas
 
@@ -46,7 +46,7 @@ Las entregas anteriores quedan archivadas como sustituidas, no completadas. Sus 
 - [Validar la versión completa y preparar piloto reversible](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/18).
 - [Formulario de configuración en Issabel](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/19).
 
-El [PR del prototipo Afiliados CRM](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/20) se conserva sin mergear como referencia. La implementación genérica y el formulario acordado siguen pendientes.
+El [PR del prototipo Afiliados CRM](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/20) se conserva sin mergear como referencia. La primera entrega genérica se revisa en su propia rama.
 
 ## Relaciones
 

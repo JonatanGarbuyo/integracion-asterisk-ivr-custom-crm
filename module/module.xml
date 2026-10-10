@@ -1,0 +1,19 @@
+<module>
+  <rawname>callflowhooks</rawname>
+  <name>CallFlow Hooks</name>
+  <version>0.2.7</version>
+  <publisher>CallFlow Hooks contributors</publisher>
+  <license>GPLv3+</license>
+  <licenselink>https://www.gnu.org/licenses/gpl-3.0.html</licenselink>
+  <category>Inbound Call Control</category>
+  <embedcategory>Inbound Call Control</embedcategory>
+  <description>Perfiles extensibles de handlers JSON desde un IVR normal.</description>
+  <depends>
+    <version>2.11.0</version>
+    <module>customappsreg</module>
+  </depends>
+  <menuitems>
+    <callflowhooks>CallFlow Hooks</callflowhooks>
+  </menuitems>
+  <popovers><callflowhooks><display>callflowhooks</display><new>1</new></callflowhooks></popovers>
+</module>
