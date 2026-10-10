@@ -11,6 +11,33 @@ permissions:
   contents: read
 
 jobs:
+  application-gates:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: controls
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: c1132d9c575d7aa1055bdb551161d96e8ef753f9
+          path: addon
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '5.4'
+          extensions: openssl
+          coverage: none
+      - name: Install laboratory build dependency
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y rpm
+      - name: Exercise actual gates on published laboratory addon
+        run: python3 controls/tools/agent_gates.py "$GITHUB_WORKSPACE/addon"
   offline:
     runs-on: ubuntu-22.04
     steps:
@@ -36,7 +63,7 @@ jobs:
         run: |
           npm install -g opencode-ai@1.18.30
           test "$(opencode --version)" = '1.18.30'
-          opencode run --help > "$RUNNER_TEMP/opencode-help.txt"
+          opencode run --help > "$RUNNER_TEMP/opencode-help.txt" 2>&1 || test "$?" = 1
           for flag in --auto --model --format; do
             grep -F -- "$flag" "$RUNNER_TEMP/opencode-help.txt"
           done

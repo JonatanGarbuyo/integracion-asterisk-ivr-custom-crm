@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location('agent_gates', ROOT / 'tools/agent_gates.py')
@@ -27,7 +28,7 @@ class GateContract(unittest.TestCase):
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text('')
             checks = GATES.commands(workspace)
-            self.assertTrue(any(command[1:4] == ['-m', 'unittest', 'discover'] for command in checks))
+            self.assertTrue(any(GATES.SUITE_CODE in command for command in checks))
             self.assertIn(['php', '-l', 'module/page.php'], checks)
             self.assertTrue(any(command[-1] == 'tools/build-rpm.py' for command in checks))
             docker = [command for command in checks if command[0] == 'docker']
@@ -38,6 +39,29 @@ class GateContract(unittest.TestCase):
             self.assertIn('*web.py', php[-1])
             self.assertIn('test_pbx_state.py', php[-1])
             self.assertTrue(all(str(workspace)+':/project:ro' in command for command in docker))
+
+    def test_nonroot_runner_uses_noninteractive_sudo_for_lifecycle_suite(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = pathlib.Path(directory)
+            for name in ('module/backend/entry.py', 'module/module.xml', 'tests/test_call.py', 'tests/test_admin.py', 'tools/build-rpm.py'):
+                path = workspace / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('')
+            with patch.object(GATES.os, 'geteuid', return_value=1001):
+                command = GATES.commands(workspace)[0]
+            self.assertEqual(command[:4], ['sudo', '-n', '--', sys.executable])
+            self.assertIn(GATES.SUITE_CODE, command)
+
+    def test_empty_full_and_targeted_suites_are_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = pathlib.Path(directory)
+            (workspace/'tests').mkdir()
+            (workspace/'tests/test_empty.py').write_text('')
+            for pattern in ('test*.py', '*web.py', 'test_pbx_state.py'):
+                result = subprocess.run(GATES.suite_command(sys.executable, pattern), cwd=str(workspace),
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                self.assertEqual(result.returncode, 5, result.stdout+result.stderr)
+                self.assertIn('Discovered 0 tests', result.stdout)
 
     def test_real_gate_process_does_not_forward_credentials_to_checks(self):
         with tempfile.TemporaryDirectory() as directory:

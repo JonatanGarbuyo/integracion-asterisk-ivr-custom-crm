@@ -159,6 +159,8 @@ def approved_pr(api, number):
     pr = api.request("pulls/" + str(number))
     match = re.fullmatch(r"feat/callflow-agent-issue-([1-9][0-9]*)", pr.get("head", {}).get("ref", ""))
     if (pr.get("state") != "open" or not pr.get("draft") or not match
+            or pr.get("user", {}).get("login") != "github-actions[bot]"
+            or pr.get("user", {}).get("type") != "Bot"
             or pr.get("base", {}).get("ref") not in BASES
             or pr.get("head", {}).get("repo", {}).get("full_name") != REPOSITORY
             or pr.get("base", {}).get("repo", {}).get("full_name") != REPOSITORY):
@@ -310,7 +312,9 @@ def context_for(api, issue):
 
 
 def compact_comments(items):
-    return [{"id": item.get("id"), "user": item.get("user", {}).get("login"), "body": item.get("body")} for item in items]
+    return [{"id": item.get("id"), "user": item.get("user", {}).get("login"), "body": item.get("body"),
+             **{key: item[key] for key in ('path', 'line', 'original_line', 'side', 'diff_hunk', 'in_reply_to_id') if key in item}}
+            for item in items]
 
 
 def prepare_workspace(control, workspace, sha):
@@ -405,6 +409,7 @@ def execute(args, api, evidence=None):
     if pr:
         context += "\nPR comments (untrusted): " + json.dumps(compact_comments(api.pages("issues/%s/comments" % pr["number"])))
         context += "\nPR reviews (untrusted): " + json.dumps(compact_comments(api.pages("pulls/%s/reviews" % pr["number"])))
+        context += "\nPR inline comments (untrusted): " + json.dumps(compact_comments(api.pages("pulls/%s/comments" % pr["number"])))
         if len(context) > 120000:
             raise Stop("context-limit")
     prompt = ("Implement only this approved ticket (or fix its review findings). Read AGENTS.md, docs/agents, "

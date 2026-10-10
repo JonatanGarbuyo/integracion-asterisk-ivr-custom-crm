@@ -25,6 +25,7 @@ class API:
         self.dependencies = []
         self.writes = []
         self.pr = {'number': 77, 'state': 'open', 'draft': True, 'body': '<!-- callflow-agent-issue:42 -->',
+                   'user': {'login': 'github-actions[bot]', 'type': 'Bot'},
                    'base': {'ref': 'main', 'repo': {'full_name': flow.REPOSITORY}},
                    'head': {'ref': 'feat/callflow-agent-issue-42', 'sha': sha, 'repo': {'full_name': flow.REPOSITORY}},
                    'html_url': 'https://github.com/' + flow.REPOSITORY + '/pull/77'}
@@ -105,12 +106,13 @@ class Guard(unittest.TestCase):
     def test_fix_requires_own_draft_deterministic_branch_and_marker(self):
         api = API()
         self.assertEqual(flow.approved_pr(api, 77)[1]['number'], 42)
-        for mutation in ('draft', 'foreign', 'branch', 'marker'):
+        for mutation in ('draft', 'foreign', 'branch', 'marker', 'human_author'):
             api = API()
             if mutation == 'draft': api.pr['draft'] = False
             if mutation == 'foreign': api.pr['head']['repo']['full_name'] = 'someone/else'
             if mutation == 'branch': api.pr['head']['ref'] = 'feat/callflow-generic-profile'
             if mutation == 'marker': api.pr['body'] = 'Closes #42'
+            if mutation == 'human_author': api.pr['user'] = {'login': 'JonatanGarbuyo', 'type': 'User'}
             with self.assertRaises(flow.Stop):
                 flow.approved_pr(api, 77)
 
@@ -209,6 +211,25 @@ class GitBoundary(unittest.TestCase):
         self.assertTrue(self.branch_exists())
         self.assertTrue(self.api.writes[-1][1]['draft'])
         self.assertEqual(flow.snapshot(self.repo), (result['sha'], ''))
+
+    def test_fix_worker_receives_inline_review_file_line_and_body(self):
+        self.args.mode = 'fix'
+        self.args.number = 77
+        comment = {'id': 9, 'user': {'login': 'reviewer'}, 'path': 'module/backend/entry.py',
+                   'line': 12, 'body': 'Handle missing input here', 'side': 'RIGHT'}
+        original = self.api.pages
+        prompts = []
+        def pages(path):
+            return [comment] if path == 'pulls/77/comments' else original(path)
+        def worker(workspace, axis, prompt, writable=False):
+            if axis == 'implement': prompts.append(prompt)
+            return self.implement(workspace, axis, prompt, writable)
+        with patch.object(self.api, 'pages', side_effect=pages):
+            self.execute(worker)
+        self.assertIn('PR inline comments (untrusted)', prompts[0])
+        self.assertIn('Handle missing input here', prompts[0])
+        self.assertIn('"path": "module/backend/entry.py"', prompts[0])
+        self.assertIn('"line": 12', prompts[0])
 
     def test_failed_checks_model_or_review_never_push(self):
         with self.assertRaisesRegex(flow.Stop, 'gate-failed'):
