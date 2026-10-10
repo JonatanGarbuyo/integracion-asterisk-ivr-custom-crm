@@ -6,7 +6,8 @@ import shlex
 import subprocess
 import sys
 
-SUITE_CODE = ('import sys, unittest; '
+SUITE_CODE = ('import os, sys, unittest; '
+              'sys.dont_write_bytecode = True; os.environ["PYTHONDONTWRITEBYTECODE"] = "1"; '
               'suite = unittest.defaultTestLoader.discover("tests", pattern=sys.argv[1]); '
               'count = suite.countTestCases(); '
               'print("Discovered %s tests" % count, flush=True); '

@@ -84,6 +84,7 @@ class GateContract(unittest.TestCase):
                                     env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             self.assertEqual(result.returncode, 0, result.stdout+result.stderr)
             self.assertNotIn('fake-', result.stdout+result.stderr)
+            self.assertFalse((workspace/'tests/__pycache__').exists())
 
 
 if __name__ == '__main__':
