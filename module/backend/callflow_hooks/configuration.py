@@ -14,13 +14,14 @@ IDENTIFIER = re.compile(r'^[a-z][a-z0-9_-]{0,39}$')
 DESTINATION = re.compile(r'^[A-Za-z0-9_-]{1,80},[A-Za-z0-9_*#-]{1,80},[1-9][0-9]{0,5}$')
 VARIABLE = re.compile(r'^[A-Za-z][A-Za-z0-9_]{0,79}$')
 CORE_FIELDS = {
+    'display_name': {'type': 'string', 'label': 'Nombre del perfil', 'default': '', 'max_length': 80, 'help': 'Nombre editable que aparece en la lista de perfiles y destinos del IVR. Cambiarlo conserva el identificador técnico y las referencias existentes.'},
     'enabled': {'type': 'boolean', 'label': 'Habilitado', 'default': True},
-    'next_destination': {'type': 'string', 'label': 'Destino siguiente', 'required': True, 'max_length': 170, 'help': 'Seleccionar un destino de PBX o ingresar contexto,extensión,prioridad en modo manual. Ejemplo: ext-local,201,1.'},
-    'fallback_destination': {'type': 'string', 'label': 'Destino de contingencia', 'required': True, 'max_length': 170, 'help': 'Destino ante error o perfil deshabilitado. Seleccionar de PBX o ingresar contexto,extensión,prioridad. Ejemplo: ext-local,202,1.'},
+    'next_destination': {'type': 'string', 'label': 'Destino al continuar', 'required': True, 'max_length': 170, 'help': 'Envía la llamada a este destino cuando el handler termina correctamente y devuelve continue. Un handler que devuelve route puede elegir uno de los destinos aprobados del perfil.'},
+    'fallback_destination': {'type': 'string', 'label': 'Destino ante fallo o perfil deshabilitado', 'required': True, 'max_length': 170, 'help': 'Envía la llamada a este destino si el perfil está deshabilitado, el handler falla, agota su tiempo o devuelve una respuesta inválida. También queda establecido antes de iniciar el AGI, por si no puede ejecutarse.'},
     'execution_budget_ms': {'type': 'integer', 'label': 'Límite del handler (ms)', 'default': 1000, 'minimum': 50, 'maximum': 5000},
     'input_source': {'type': 'choice', 'label': 'Fuente de entrada', 'default': 'none', 'options': ['none', 'dtmf', 'callerid', 'channel']},
     'input_variable': {'type': 'string', 'label': 'Variable de entrada del canal', 'default': '', 'max_length': 80},
-    'input_prompt': {'type': 'string', 'label': 'Audio para solicitar dígitos', 'default': '', 'max_length': 100, 'help': 'Grabación simple de System Recordings para solicitar DTMF. Sin audio omite el mensaje. En modo manual, usar un nombre relativo sin extensión, por ejemplo custom/bienvenido.'},
+    'input_prompt': {'type': 'string', 'label': 'Audio para solicitar dígitos', 'default': '', 'max_length': 100, 'help': 'Grabación simple de System Recordings que se reproduce al solicitar entrada DTMF. Sin audio omite el mensaje. Los audios se administran en System Recordings.'},
     'input_max_digits': {'type': 'integer', 'label': 'Máximo de dígitos', 'default': 20, 'minimum': 1, 'maximum': 40},
     'input_timeout_ms': {'type': 'integer', 'label': 'Tiempo para ingresar dígitos (ms)', 'default': 5000, 'minimum': 100, 'maximum': 15000}
 }
@@ -96,6 +97,7 @@ class Configuration:
         if extension not in self.catalog:
             raise ConfigurationError('Seleccionar una extensión instalada.', 'extension')
         normalized = validate_fields(CORE_FIELDS, {k: v for k, v in profile.items() if k in CORE_FIELDS})
+        normalized['display_name'] = normalized['display_name'] or identifier
         for key in ('next_destination', 'fallback_destination'):
             if not DESTINATION.fullmatch(normalized[key]) or normalized[key].startswith('callflow-profile-'):
                 raise ConfigurationError('Ingresar contexto,extensión,prioridad; por ejemplo ext-local,201,1.', key)

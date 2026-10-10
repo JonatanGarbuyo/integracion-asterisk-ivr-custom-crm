@@ -54,7 +54,11 @@ elif name=='ps':
   print('asteris+ httpd\\nasteris+ asterisk\\nroot httpd')
  else: print('asterisk httpd\\nasterisk asterisk\\nroot httpd')
 elif name=='php':
- if 'framework' in sys.argv: print(json.dumps({{'menu':data['menu'],'acl':data['acl']}}))
+ if 'retire-native' in sys.argv:
+  if os.environ.get('BOUNDARY_MENU_FAIL'): sys.exit(1)
+  data['menu']=False; data['acl']=False
+  print(json.dumps({{'ok':True}}))
+ elif 'framework' in sys.argv: print(json.dumps({{'menu':data['menu'],'acl':data['acl']}}))
  elif 'reload' in sys.argv: print(json.dumps({{'ok':not bool(os.environ.get('BOUNDARY_RELOAD_FAIL'))}}))
  elif 'synchronize' in sys.argv:
   data['destinations']=not bool(os.environ.get('BOUNDARY_INVALID_CONFIG'))
@@ -95,6 +99,7 @@ state.write_text(json.dumps(data))
                               stderr=subprocess.PIPE, universal_newlines=True, timeout=15)
 
     def test_install_and_reinstall_register_native_menu_and_preserve_configuration(self):
+        self.state.write_text(json.dumps({'enabled':False, 'menu':True, 'acl':True}))
         original = self.configuration.read_bytes()
         for _ in range(2):
             result = self.lifecycle('install')
@@ -103,7 +108,8 @@ state.write_text(json.dumps(data))
             self.assertEqual(self.configuration.stat().st_mode & 0o777, 0o600)
             self.assertNotIn('preserve-existing-credential', result.stdout+result.stderr)
         state = json.loads(self.state.read_text())
-        self.assertTrue(state['enabled'] and state['menu'] and state['acl'])
+        self.assertTrue(state['enabled'])
+        self.assertFalse(state['menu'] or state['acl'])
         result = self.lifecycle('status')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)['commit'], 'a'*40)
@@ -149,7 +155,7 @@ state.write_text(json.dumps(data))
     def test_partial_menu_failure_is_reported_and_can_be_repaired(self):
         result = self.lifecycle('install', BOUNDARY_MENU_FAIL='1')
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn('native-menu', result.stderr)
+        self.assertIn('retire-native-menu', result.stderr)
         self.assertNotEqual(self.lifecycle('status').returncode, 0)
         self.assertEqual(self.configuration.read_text(), '; preserve-existing-credential\n')
         result = self.lifecycle('install')
@@ -185,7 +191,7 @@ state.write_text(json.dumps(data))
         self.assertEqual(self.lifecycle('install').returncode, 0)
         result = self.lifecycle('remove', BOUNDARY_RELOAD_FAIL='1')
         self.assertNotEqual(result.returncode, 0)
-        self.assertTrue(json.loads(self.state.read_text())['menu'])
+        self.assertFalse(json.loads(self.state.read_text())['menu'])
         result = self.lifecycle('remove')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse(json.loads(self.state.read_text())['menu'])

@@ -14,10 +14,17 @@ function recordings_get_file($id) {
     foreach (recordings_list() as $item) if ((string)$item['id'] === (string)$id) return $item['filename'];
     return '';
 }
+function core_destination_popovers() { return array('extensions'=>'Extensions', 'users'=>'Users'); }
 function drawselects($current, $index, $custom=false, $table=true, $message='', $required=false, $output_array=false, $reset=false) {
+    $GLOBALS['active_modules'] = array('queues'=>array('popovers'=>array('queues'=>array('display'=>'queues'))),
+        'core'=>array('popovers'=>array('extensions'=>array('display'=>'extensions'), 'users'=>array('display'=>'users'))));
+    $GLOBALS['drawselects_module_hash'] = array('Queues'=>'queues', 'Extensions'=>'core', 'Users'=>'core');
+    $GLOBALS['fw_popover'] = !empty($GLOBALS['request']['nested_popover']);
     $catalog = isset($GLOBALS['request']['destination_catalog']) ? $GLOBALS['request']['destination_catalog'] : array('Queues'=>array(array('destination'=>'ext-queues,6000,1','description'=>'general <6000>')),
                      'Extensions'=>array(array('destination'=>'from-did-direct,101,1','description'=>'101')),
                      'Terminate Call'=>array(array('destination'=>'app-blackhole,hangup,1','description'=>'Hangup')));
+    if (!empty($GLOBALS['request']['with_popovers'])) $catalog['Queues'][] = array('destination'=>'popover','description'=>'Add new Queues …');
+    if (function_exists('callflowhooks_destinations')) $catalog['CallFlow Hooks'] = callflowhooks_destinations();
     if ($output_array) return $catalog;
     $selected = '';
     foreach ($catalog as $category=>$items) foreach ($items as $item) {

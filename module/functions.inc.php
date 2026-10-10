@@ -77,6 +77,43 @@ function callflowhooks_backend($request) {
     return $response;
 }
 
+function callflowhooks_destinations() {
+    // drawselects calls every module without isolating exceptions. Keep unrelated
+    // IVR/routing forms available; our administration page reports this error.
+    try { $configuration = callflowhooks_backend(array('action'=>'describe')); }
+    catch (callflowhooks_backend_error $error) { return array(); }
+    $items = array();
+    foreach ($configuration['profiles'] as $profile) {
+        // Old PBX selectors interpolate description without escaping.
+        $items[] = array('destination'=>$profile['custom_destination'], 'description'=>callflowhooks_escape($profile['display_name']), 'category'=>'CallFlow Hooks');
+    }
+    return $items;
+}
+
+function callflowhooks_getdestinfo($destination) {
+    if (!is_string($destination) || !preg_match('/^callflow-profile-[a-z][a-z0-9_-]{0,39},s,1$/D', $destination)) return false;
+    foreach (callflowhooks_destinations() as $item) {
+        if ($item['destination'] === $destination) {
+            $identifier = substr(explode(',', $destination)[0], strlen('callflow-profile-'));
+            return array('description'=>'CallFlow Hooks: '.$item['description'], 'edit_url'=>'config.php?display=callflowhooks&profile='.rawurlencode($identifier));
+        }
+    }
+    return false;
+}
+
+function callflowhooks_check_destinations($destinations = true) {
+    $configuration = callflowhooks_backend(array('action'=>'describe'));
+    $usage = array();
+    foreach ($configuration['profiles'] as $profile) {
+        foreach (array('next_destination', 'fallback_destination') as $field) {
+            if ($destinations !== true && !in_array($profile[$field], $destinations, true)) continue;
+            $usage[] = array('dest'=>$profile[$field], 'description'=>'CallFlow Hooks: '.callflowhooks_escape($profile['display_name']).' / '.callflowhooks_escape($configuration['core_fields'][$field]['label']),
+                            'edit_url'=>'config.php?display=callflowhooks&profile='.rawurlencode($profile['identifier']));
+        }
+    }
+    return $usage;
+}
+
 function callflowhooks_register($identifier) {
     if (!is_string($identifier) || !preg_match('/^[a-z][a-z0-9_-]{0,39}$/D', $identifier)) {
         $error = 'Usar una letra minúscula inicial, letras minúsculas, dígitos, guion o guion bajo; máximo 40 caracteres.';
@@ -89,6 +126,10 @@ function callflowhooks_register($identifier) {
         if ($existing['notes'] !== 'Managed by CallFlow Hooks') throw new callflowhooks_backend_error('Destino ocupado por otra configuración');
         return false;
     }
+    // A profile already loaded from .conf owns its destination through the native
+    // callback. Custom Destinations refuses duplicate ownership; no legacy row
+    // is needed. Keep existing managed rows and pre-save registration compatible.
+    if (callflowhooks_getdestinfo($destination)) return false;
     if (!customappsreg_customdests_add($destination, 'CallFlow Hooks: '.$identifier, 'Managed by CallFlow Hooks')) {
         throw new callflowhooks_backend_error('No se pudo registrar el destino');
     }

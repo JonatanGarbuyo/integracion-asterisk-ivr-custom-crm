@@ -13,7 +13,7 @@ Crear ambas VM en VirtualBox sin conectarlas a la troncal del cliente. Usar red 
 
 ## Instalar directamente desde el repositorio
 
-La versión 0.2.6 integra el formulario en **PBX → PBX Configuration → Inbound Call Control → CallFlow Hooks**, conservando el acceso nativo anterior. No requiere transferir un `.tgz`. Usar únicamente la VM de laboratorio y conservar el snapshot anterior.
+La versión 0.2.7 integra el formulario en **PBX → PBX Configuration → Inbound Call Control → CallFlow Hooks**, retirando el acceso nativo anterior. No requiere transferir un `.tgz`. Usar únicamente la VM de laboratorio y conservar el snapshot anterior.
 
 Para construir desde el repo se requieren `git`, `rpm-build`, Python >=3.6, PHP >=5.4 y las herramientas habituales de Issabel. Si yum sigue consultando mirrorlist retirados de CentOS 7, usar la configuración temporal Vault ya utilizada para instalar Python; el instalador no modifica repositorios ni hace una actualización global.
 
@@ -35,22 +35,22 @@ Para preparar el RPM sin instalarlo:
 
 ### Descarga directa sin Git
 
-La prerelease de laboratorio `v0.2.6` distribuye el RPM y `manifest.json`. Para descargar e instalar sin Git ni herramientas de compilación:
+La prerelease de laboratorio `v0.2.7` distribuye el RPM y `manifest.json`. Para descargar e instalar sin Git ni herramientas de compilación:
 
 ```bash
-curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.6/tools/install.py -o /tmp/callflow-install.py
-sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.6
+curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.7/tools/install.py -o /tmp/callflow-install.py
+sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.7
 ```
 
 Esta modalidad requiere `rpm2cpio` y `cpio`, pero no `git` ni `rpmbuild` en la PBX. El workflow publica una prerelease de laboratorio después de las pruebas y la construcción del RPM, desde un tag coincidente o una rama `release/callflow-hooks-vX.Y.Z`. No certifica la instalación efectiva en la VM. El checksum detecta corrupción y se contrasta además la identidad del RPM; no equivale por sí solo a una firma de un editor independiente.
 
 ## Registro, permisos y actualización
 
-El RPM coloca el formulario en `/var/www/html/modules/callflowhooks`, el puente en `/var/www/html/admin/modules/callflowhooks` y el backend/extensiones en `/usr/share/callflow-hooks`. Se registra menú/ACL mediante `issabel-menumerge`. Por defecto, el framework concede acceso al grupo administrador; los permisos adicionales se administran en Issabel y la actualización conserva sus decisiones.
+El RPM coloca el formulario/puente integrado en `/var/www/html/admin/modules/callflowhooks` y el backend/extensiones en `/usr/share/callflow-hooks`. La metadata PBX lo ubica en Inbound Call Control. Desde 0.2.7 no instala la página externa `/var/www/html/modules/callflowhooks`; retira su antiguo menú y recurso ACL. Los permisos se comprueban contra la sección PBX y, con sesión Issabel, contra `pbxadmin/callflowhooks` del framework. La migración conserva los privilegios de Configuración PBX.
 
 El paquete requiere que los procesos PHP/httpd y Asterisk usen el mismo usuario de servicio no root. Consulta `core show settings` para localizar el archivo PID del servidor Asterisk y verifica el UID efectivo de ese PID; las consolas remotas `asterisk -r/-R/-rx` no se confunden con el servidor. Comprueba también los workers httpd y el usuario configurado de la PBX; si difieren, detiene la instalación e informa la causa. La configuración usa directorio 0700 y archivo 0600 propiedad de ese usuario. Después del gestor PBX se restablecen esos permisos y propiedad root del código propio. No modificar Python del sistema ni deshabilitar SELinux para instalar; verificar los contextos efectivos desde web y llamada en la VM.
 
-Repetir el instalador permite reinstalar/reparar la misma versión y actualizar desde un nuevo checkout o release. Conserva `profiles.conf` y sus secretos. Después de una instalación parcial, corregir la fase informada y repetir; no anunciar éxito hasta que el registro nativo, puente y metadatos coincidan.
+Repetir el instalador permite reinstalar/reparar la misma versión y actualizar desde un nuevo checkout o release. Conserva `profiles.conf` y sus secretos. Después de una instalación parcial, corregir la fase informada y repetir; no anunciar éxito hasta que el puente, retiro del menú externo y metadatos coincidan.
 
 ```bash
 sudo /usr/sbin/callflow-hooksctl status
@@ -58,15 +58,33 @@ sudo /usr/sbin/callflow-hooksctl status
 
 Al migrar desde el `.tgz` 0.1.0, se conservan perfiles y destinos propios. El generador prefiere el runtime compartido del RPM; los archivos antiguos del `.tgz` que RPM no posee pueden seguir presentes, pero no se usan como runtime cuando existe el compartido. Guardar/sincronizar valida colisiones y registra destinos propios; nunca escribir directamente en dialplan generado.
 
-El `.tgz` de `tools/build.py` sigue siendo únicamente un artefacto del puente IssabelPBX. No usarlo como alternativa al RPM si se espera el menú nativo.
+El `.tgz` de `tools/build.py` sigue siendo únicamente un artefacto del puente IssabelPBX. No usarlo como alternativa al RPM: no instala el runtime compartido ni gestiona el retiro del menú externo.
 
 ## Llamada de prueba y desactivación
 
-1. Abrir **PBX → PBX Configuration → Inbound Call Control → CallFlow Hooks**. Comprobar el listado a la derecha, crear un perfil y editarlo; el mensaje de edición no repite la vinculación al IVR. Guardar debe hacer visible el botón habitual **Aplicar cambios** en esta vista. Crear dos perfiles con la extensión `example`. Probar los selectores **Destino siguiente** y **Destino de contingencia**, eligiendo por ejemplo una cola y un interno existentes. Editar un perfil previo con `ext-local` y comprobar que aparece como entrada manual y se conserva al guardar. Para DTMF, cargar una grabación simple en **System Recordings**, seleccionarla en **Audio para solicitar dígitos** y luego probar **Sin audio**. Registrar captura de dígitos y reproducción efectiva; el CI verifica comandos AGI, no audio audible. En **PBX → Configuración PBX → IVR**, editar un IVR habitual y elegir para cada opción **Custom Destinations → CallFlow Hooks: <identificador>**. El addon crea esos destinos automáticamente; no cargarlos a mano. Si no aparecen, volver al addon, usar **Sincronizar destinos de .conf** y recargar la configuración PBX.
+1. Abrir **PBX → PBX Configuration → Inbound Call Control → CallFlow Hooks**. Comprobar el listado a la derecha, crear un perfil y editarlo; el mensaje de edición no repite la vinculación al IVR. Guardar debe hacer visible el botón habitual **Aplicar cambios** en esta vista. Crear dos perfiles con la extensión `example`. Probar los selectores **Destino al continuar** y **Destino ante fallo o perfil deshabilitado**, eligiendo por ejemplo una cola y un interno existentes. Editar un perfil previo con `ext-local` y comprobar que aparece como Destino actual y se conserva al guardar. Para DTMF, cargar una grabación simple en **System Recordings**, seleccionarla en **Audio para solicitar dígitos** y luego probar **Sin audio**. Registrar captura de dígitos y reproducción efectiva; el CI verifica comandos AGI, no audio audible. En **PBX → Configuración PBX → IVR**, editar un IVR habitual y elegir para cada opción **CallFlow Hooks → <nombre del perfil>**. El addon publica esos destinos automáticamente; no cargarlos a mano. Si no aparecen, volver al addon, usar **Sincronizar destinos de .conf** y recargar la configuración PBX.
 2. Guardar el IVR y usar **Aplicar configuración**. Si se prueba mediante una llamada entrante, seleccionar ese IVR como destino en **Inbound Routes**. El perfil ya guardado por el usuario, `example`, produce `callflow-profile-example,s,1`; con `input_source=none` y `next_destination=ext-local,101,1`, una ejecución correcta continúa al interno 101. El handler de ejemplo agrega `greeting` al contexto; no reproduce el texto como audio.
 3. Llamar a ambas opciones. Registrar interno alcanzado y variables `CALLFLOW_*` sin datos personales. Probar `none`, CallerID, DTMF y una variable de canal preparada por un contexto propio.
 4. Deshabilitar un perfil desde el formulario. Las nuevas ejecuciones usan su contingencia; el destino sigue existiendo. Rehabilitar y repetir.
 5. Para quitar el módulo, retirar primero referencias desde IVR/rutas, aplicar y esperar a que terminen llamadas en curso. Ejecutar `sudo rpm -e issabel-callflow-hooks`. El paquete rechaza referencias activas a destinos propios y llamadas en curso; retira el puente, regenera PBX y elimina su menú/ACL. Esa regeneración aplica los cambios PBX pendientes, por lo que deben revisarse antes de quitarlo. Si falla la recarga se conserva el código y se puede repetir tras corregir. Se borran únicamente destinos marcados como propios; se conserva .conf para reinstalar.
 6. Recuperar el snapshot de VM para la reversión completa del laboratorio. No usar desinstalación con llamadas activas como mecanismo de reversión de producción.
 
-El usuario confirmó instalación de 0.2.4 y llamada mediante opción 1 explícita del IVR → perfil `example` → AGI → `ext-local,101,1`, con SIP/101 atendido. El usuario confirmó instalación de 0.2.5. Los nuevos selectores de 0.2.6 y la reproducción de audio deben comprobarse en la VM. Audio, contingencia y ACL completos siguen pendientes; un CI verde no confirma menú de la distribución, audio, SELinux, cola ni proveedor real. Guardar actualiza el .conf consumido por nuevas ejecuciones AGI; Aplicar cambios regenera el dialplan, sin staging ni recarga automática.
+El usuario confirmó instalación de 0.2.4 y llamada mediante opción 1 explícita del IVR → perfil `example` → AGI → `ext-local,101,1`, con SIP/101 atendido. El usuario confirmó instalación de 0.2.5. Los nuevos selectores de 0.2.7 y la reproducción de audio deben comprobarse en la VM. Audio, contingencia y ACL completos siguen pendientes; un CI verde no confirma menú de la distribución, audio, SELinux, cola ni proveedor real. Guardar actualiza el .conf consumido por nuevas ejecuciones AGI; Aplicar cambios regenera el dialplan, sin staging ni recarga automática.
+
+## Empezar limpio antes de 0.2.7
+
+En la VM, cambiar las opciones del IVR y las rutas que apuntan a CallFlow Hooks por un interno/cola existente, y pulsar Aplicar cambios. Esperar a que no haya llamadas activas. El RPM anterior protege la desinstalación si encuentra referencias o llamadas.
+
+Ejecutar como root:
+
+```bash
+(
+  set -e
+  rpm -e issabel-callflow-hooks
+  rm -rf -- /etc/asterisk/callflow-hooks /var/lib/callflow-hooks
+)
+```
+
+Esto elimina todos los perfiles y credenciales del addon. Si rpm falla, el bloque se detiene y conserva la configuración; corregir la causa, sin usar --noscripts ni --nodeps. Los archivos de código administrados por el RPM se retiran automáticamente. No borrar archivos de dialplan generado ni directorios de otros módulos. Las copias de respaldo externas no se importan automáticamente.
+
+Después instalar 0.2.7 mediante el instalador publicado, crear un perfil y asignar **CallFlow Hooks → nombre** a la opción del IVR. Guardar y Aplicar cambios. Verificar las ayudas, el renombrado, la lista de grabaciones, popover de crear cola, atención y contingencia.

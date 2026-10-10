@@ -34,11 +34,12 @@ define('ISSABELPBX_IS_AUTH', true);
 $boundaryDestinations = json_decode(file_get_contents(getenv('PROBE_DESTINATIONS')), true);
 function customappsreg_customdests_get($dest) { global $boundaryDestinations; return isset($boundaryDestinations[$dest]) ? $boundaryDestinations[$dest] : array(); }
 function customappsreg_customdests_add($dest, $description, $notes) {
+    if (callflowhooks_getdestinfo($dest)) return false;
     global $boundaryDestinations; $boundaryDestinations[$dest] = array('custom_dest'=>$dest,'notes'=>$notes);
     file_put_contents(getenv('PROBE_DESTINATIONS'), json_encode($boundaryDestinations)); return true;
 }
 function customappsreg_customdests_list() { global $boundaryDestinations; return $boundaryDestinations; }
-function framework_check_destination_usage($items) { return getenv('PROBE_REFERENCES') ? array('ivr') : array(); }
+function framework_check_destination_usage($items) { return getenv('PROBE_REFERENCES') && in_array('callflow-profile-welcome,s,1', $items, true) ? array('ivr') : array(); }
 function needreload() { file_put_contents(getenv('PROBE_RELOAD'), 'pending'); }
 function do_reload() { return array('status'=>!getenv('PROBE_RELOAD_FAIL')); }
 require getenv('PROBE_BRIDGE');
@@ -50,9 +51,9 @@ echo 'database-password-must-not-leak';
         (base/'configs/default.conf.php').write_text("<?php $arrConf = array('issabel_dsn'=>array('menu'=>'menu','acl'=>'acl'));")
         (base/'libs/misc.lib.php').write_text('<?php')
         for filename, source in {
-            'paloSantoDB.class.php': 'class paloDB { function __construct($dsn) {} }',
-            'paloSantoMenu.class.php': 'class paloMenu { function __construct($db) {} function existeMenu($id) { return $id === "callflowhooks"; } }',
-            'paloSantoACL.class.php': 'class paloACL { function __construct($db) {} function getIdResource($id) { return $id === "callflowhooks" ? 12 : false; } }'
+            'paloSantoDB.class.php': 'class paloDB { function __construct($dsn) {} function getFirstRowQuery($sql,$assoc,$params) { return array("N"=>0); } function genQuery($sql,$params) { $GLOBALS["menuRemoved"] = true; return true; } }',
+            'paloSantoMenu.class.php': 'class paloMenu { function __construct($db) {} function existeMenu($id) { return $id === "callflowhooks" && empty($GLOBALS["menuRemoved"]); } }',
+            'paloSantoACL.class.php': 'class paloACL { function __construct($db) {} function deleteIdResource($id) { $GLOBALS["aclRemoved"] = true; return true; } function getIdResource($id) { return $id === "callflowhooks" && empty($GLOBALS["aclRemoved"]) ? 12 : false; } }'
         }.items():
             (base/'libs'/filename).write_text('<?php '+source)
         self.environment = dict(os.environ, PROBE_DESTINATIONS=str(self.destinations),
@@ -64,10 +65,10 @@ echo 'database-password-must-not-leak';
                               env=dict(self.environment, **environment), stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE, universal_newlines=True, timeout=8)
 
-    def test_synchronize_repairs_missing_destinations_and_rejects_invalid_configuration(self):
+    def test_synchronize_native_profiles_without_duplicate_legacy_rows_and_reject_invalid_configuration(self):
         self.assertTrue(self.request('save', profile=self.profile(), expected_version=self.request('describe')['configuration_version'])['ok'])
         result = self.probe('configuration')
-        self.assertNotEqual(result.returncode, 0, 'Missing destination must fail verification')
+        self.assertEqual(result.returncode, 0, 'Native callback owns a profile even without a legacy row')
         result = self.probe('synchronize')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout), {'ok': True})
@@ -77,11 +78,13 @@ echo 'database-password-must-not-leak';
         self.assertEqual(self.config.read_bytes(), original)
         self.assertEqual(self.probe('configuration').returncode, 0)
         destinations = json.loads(self.destinations.read_text())
-        self.assertEqual(destinations['callflow-profile-welcome,s,1']['notes'], 'Managed by CallFlow Hooks')
+        self.assertEqual(destinations, {})
+        self.assertTrue(json.loads(self.probe('references', PROBE_REFERENCES='1').stdout)['references'])
         self.config.write_text('[invalid]\nsecret=never-print\n')
         result = self.probe('synchronize')
         self.assertNotEqual(result.returncode, 0)
         self.assertNotIn('never-print', result.stdout+result.stderr)
+        self.assertNotEqual(self.probe('references').returncode, 0, 'Unknown references must block removal')
 
     def test_configuration_rejects_foreign_destination_without_overwriting_it(self):
         self.request('save', profile=self.profile(), expected_version=self.request('describe')['configuration_version'])
@@ -97,6 +100,7 @@ echo 'database-password-must-not-leak';
         self.assertEqual(json.loads(result.stdout)['user'], 'asterisk')
         self.assertNotIn('database-password', result.stdout+result.stderr)
         self.assertEqual(json.loads(self.probe('framework').stdout), {'menu':True,'acl':True})
+        self.assertEqual(json.loads(self.probe('retire-native').stdout), {'ok':True})
         self.request('save', profile=self.profile(), expected_version=self.request('describe')['configuration_version'])
         self.assertEqual(self.probe('synchronize').returncode, 0)
         self.assertTrue(json.loads(self.probe('references', PROBE_REFERENCES='1').stdout)['references'])

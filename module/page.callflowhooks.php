@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $configuration = callflowhooks_save($submitted, isset($_POST['configuration_version']) ? $_POST['configuration_version'] : '');
             unset($_SESSION['callflowhooks_draft']);
             $selectedId = $submitted['identifier'];
-            echo '<p role="status">'.($updating ? 'Perfil actualizado.' : 'Perfil guardado. En el IVR, seleccionar Custom Destinations → CallFlow Hooks: '.callflowhooks_escape($selectedId).'.').' Pulsar Aplicar cambios en Configuración PBX para regenerar el dialplan.</p>';
+            echo '<p role="status">'.($updating ? 'Perfil actualizado.' : 'Perfil guardado. En el IVR, seleccionar CallFlow Hooks → '.callflowhooks_escape($submitted['display_name'] ? $submitted['display_name'] : $selectedId).'.').'</p>';
         }
     } catch (Exception $error) {
         $message = $error instanceof callflowhooks_backend_error ? $error->getMessage() : 'No se pudo completar la operación PBX. Revisar el registro del servidor.';
@@ -106,7 +106,7 @@ $showProfileForm = isset($_GET['new']) || isset($_GET['extension']) || $selected
 $newUrl = callflowhooks_escape($callflowhooks_form_url.'&new=1');
 echo '<div class="rnav"><ul><li><a href="'.$newUrl.'"'.(!$selected && $showProfileForm ? ' id="current"' : '').'>Nuevo perfil</a></li>';
 foreach ($configuration['profiles'] as $profile) {
-    echo '<li><a href="'.callflowhooks_escape($callflowhooks_form_url.'&profile='.rawurlencode($profile['identifier'])).'"'.($selected && $selected['identifier'] === $profile['identifier'] ? ' id="current"' : '').'>'.callflowhooks_escape($profile['identifier']).'</a></li>';
+    echo '<li><a href="'.callflowhooks_escape($callflowhooks_form_url.'&profile='.rawurlencode($profile['identifier'])).'"'.($selected && $selected['identifier'] === $profile['identifier'] ? ' id="current"' : '').'>'.callflowhooks_escape($profile['display_name']).'</a></li>';
 }
 echo '</ul></div>';
 if (!$showProfileForm) {
@@ -128,7 +128,7 @@ if (!$extension) {
 echo '<form class="popover-form" method="post" action="'.callflowhooks_escape($callflowhooks_form_url).'">';
 callflowhooks_form_hidden($configuration, $callflowhooks_embedded);
 echo '<input type="hidden" name="extension" value="'.callflowhooks_escape($extensionId).'">';
-echo '<table><tr><td colspan="2"><h2 id="title">'.($editing ? 'Editar perfil: '.callflowhooks_escape($selected['identifier']) : 'Nuevo perfil').'</h2></td></tr>';
+echo '<table><tr><td colspan="2"><h2 id="title">'.($editing ? 'Editar perfil: '.callflowhooks_escape((isset($selected['display_name']) && $selected['display_name'] !== '' ? $selected['display_name'] : $selected['identifier'])) : 'Nuevo perfil').'</h2></td></tr>';
 callflowhooks_section('Perfil');
 echo '<tr><td><label for="callflowhooks-extension">Extensión del handler</label></td><td>';
 if ($editing || $draft) {
@@ -141,7 +141,7 @@ if ($editing || $draft) {
     }
     echo '</select>';
 }
-echo '</td></tr><tr><td><label for="callflowhooks-identifier">Identificador</label><span class="help">?<span>Ejemplo: prueba. Usar una letra minúscula inicial, letras minúsculas, dígitos, guion o guion bajo. El identificador del destino se conserva al editar.</span></span></td><td><input name="identifier" value="'.callflowhooks_escape($selected ? $selected['identifier'] : '').'" id="callflowhooks-identifier" maxlength="40" required'.($editing ? ' readonly' : '').'>';
+echo '</td></tr><tr><td><label for="callflowhooks-identifier">Identificador del perfil</label><span class="help">?<span>Clave técnica estable usada en el dialplan y las referencias del IVR. Se fija al crear. Para renombrar el perfil, editar Nombre del perfil. Usar letras minúsculas, dígitos, guion o guion bajo; comenzar con una letra.</span></span></td><td><input name="identifier" value="'.callflowhooks_escape($selected ? $selected['identifier'] : '').'" id="callflowhooks-identifier" maxlength="40" required'.($editing ? ' readonly' : '').'>';
 if (isset($fields['identifier'])) echo '<p role="alert">Identificador: '.callflowhooks_escape($fields['identifier']).'</p>';
 echo '</td></tr>';
 foreach ($configuration['core_fields'] as $name=>$field) {
@@ -149,7 +149,7 @@ foreach ($configuration['core_fields'] as $name=>$field) {
     if ($name === 'input_source') callflowhooks_section('Entrada del handler');
     $renderer = in_array($name, array('next_destination', 'fallback_destination'), true) ? 'callflowhooks_destination_field' :
         ($name === 'input_prompt' ? 'callflowhooks_recording_field' : 'callflowhooks_field');
-    $renderer($name, $field, $selected ? $selected[$name] : (isset($field['default']) ? $field['default'] : ''), isset($fields[$name]) ? $fields[$name] : '');
+    $renderer($name, $field, $selected && isset($selected[$name]) ? $selected[$name] : (isset($field['default']) ? $field['default'] : ''), isset($fields[$name]) ? $fields[$name] : '');
 }
 callflowhooks_section('Opciones de '.$extension['title']);
 foreach ($extension['fields'] as $name=>$field) {
@@ -160,4 +160,3 @@ echo '<tr><td colspan="2"><h6><button type="submit">Guardar perfil</button> <but
 if ($draft) echo ' <button name="discard_draft" value="1" type="submit" formnovalidate>Descartar borrador</button>';
 echo '</h6></td></tr></table></form>';
 
-callflowhooks_selector_script();

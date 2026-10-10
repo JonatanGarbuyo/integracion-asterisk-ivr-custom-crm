@@ -34,6 +34,16 @@ class BoundaryDialplan {
 }
 $ext = new BoundaryDialplan();
 if (empty($request['bootstrap'])) require dirname(__DIR__).'/module/functions.inc.php';
+if (!empty($request['callbacks_only'])) {
+    $usageFailed = false;
+    try { callflowhooks_check_destinations(); } catch (callflowhooks_backend_error $error) { $usageFailed = true; }
+    ob_start();
+    include dirname(__DIR__).'/module/page.callflowhooks.php';
+    $html = ob_get_clean();
+    echo json_encode(array('catalog'=>callflowhooks_destinations(), 'info'=>callflowhooks_getdestinfo('callflow-profile-welcome,s,1'),
+        'usage_failed'=>$usageFailed, 'html'=>$html));
+    exit;
+}
 if (isset($request['surface']) && $request['surface'] === 'native') {
     class BoundaryACL {
         function authenticateUser($user, $password) { return $password === 'session-password'; }
@@ -70,4 +80,6 @@ if (function_exists('callflowhooks_get_config')) callflowhooks_get_config('aster
 file_put_contents($registry, json_encode($destinations));
 file_put_contents($sessionFile, json_encode(isset($_SESSION['callflowhooks_draft']) ? $_SESSION['callflowhooks_draft'] : null));
 echo json_encode(array('html'=>$html, 'destinations'=>$destinations, 'reloads'=>$reloads,
+                      'destination_info'=>isset($request['info_destination']) ? callflowhooks_getdestinfo($request['info_destination']) : null,
+                      'destination_usage'=>isset($request['usage_destination']) ? callflowhooks_check_destinations(array($request['usage_destination'])) : null,
                       'dialplan'=>implode("\n", $ext->lines)));

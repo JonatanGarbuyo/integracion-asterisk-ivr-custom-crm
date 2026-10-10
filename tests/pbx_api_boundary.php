@@ -5,6 +5,8 @@ function customappsreg_customdests_get($dest) {
 }
 function customappsreg_customdests_add($dest, $description, $notes) {
     if (isset($GLOBALS['destinations'][$dest])) return false;
+    // Official add rejects destinations identified as owned by another module.
+    if (function_exists('callflowhooks_getdestinfo') && callflowhooks_getdestinfo($dest)) return false;
     $GLOBALS['destinations'][$dest] = array('custom_dest'=>$dest, 'description'=>$description, 'notes'=>$notes);
     return true;
 }

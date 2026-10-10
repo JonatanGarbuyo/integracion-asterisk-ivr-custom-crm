@@ -1,17 +1,17 @@
 # Administración nativa e instalación desde el repositorio
 
-Diseño de la corrección de la primera entrega, ticket [#21](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/21). La versión 0.2.6 implementa este diseño con pruebas en fronteras simuladas y construcción RPM real. Se distribuye como prerelease de laboratorio; la VM Issabel 4 confirmó instalación y menú nativo con 0.2.1; 0.2.2 confirmó guardado desde la web; el log posterior confirmó dialplan aplicado, AGI y atención en 101; ACL completos, audio, contingencia y la VM Issabel 5 siguen pendientes. La especificación y los tickets de GitHub siguen siendo canónicos.
+Diseño de la corrección de la primera entrega, ticket [#21](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/21). La versión 0.2.7 implementa este diseño con pruebas en fronteras simuladas y construcción RPM real. Se distribuye como prerelease de laboratorio; la VM Issabel 4 confirmó instalación y menú nativo con 0.2.1; 0.2.2 confirmó guardado desde la web; el log posterior confirmó dialplan aplicado, AGI y atención en 101; ACL completos, audio, contingencia y la VM Issabel 5 siguen pendientes. La especificación y los tickets de GitHub siguen siendo canónicos.
 
 ## Componentes
 
 | Componente | Responsabilidad | Ubicación prevista |
 |---|---|---|
-| Acceso nativo Issabel anterior | Compatibilidad, sesión y ACL | `/var/www/html/modules/callflowhooks/` |
+| Acceso nativo Issabel anterior | Retirado en 0.2.7; no se instala | — |
 | Módulo IssabelPBX integrado | Formulario, Custom Destinations y generación del dialplan | `/var/www/html/admin/modules/callflowhooks/` |
 | Núcleo y extensiones | Administración JSON, ejecución AGI y handlers | `/usr/share/callflow-hooks/` |
 | Configuración | Fuente compartida entre formulario, CLI y llamadas | `/etc/asterisk/callflow-hooks/profiles.conf` |
 
-Un RPM instala los componentes juntos. Desde 0.2.5, por solicitud del usuario, la interfaz principal es **PBX → PBX Configuration → Inbound Call Control → CallFlow Hooks**. `category`/`embedcategory` registran esa categoría en el menú PBX; no se modifica el editor del IVR ni se añade un menú mediante JavaScript. El shell normal muestra Aplicar cambios y el módulo marca `needreload` al guardar/sincronizar. El acceso nativo anterior conserva `menu.xml`, ACL y formulario con un enlace a la nueva ubicación, para una actualización compatible. En Issabel 4 embebido se comprueba además `hasModulePrivilege` del framework, porque su wrapper construye `AMP_user` como admin. La sección PBX se comprueba en todos los accesos PBX. Si existe una sesión Issabel, se exige además su permiso de módulo incluso sin embeber, para no confiar en un AMP admin heredado. Cuando falta el ACL del framework se deniega y se indica abrir desde Configuración PBX de Issabel. Un login PBX independiente sin sesión Issabel conserva su control de sección. Ambos accesos comparten formulario y backend. El RPM instala el núcleo compartido; el `.tgz` conserva sólo la estructura del puente.
+Un RPM instala los componentes juntos. Desde 0.2.5, por solicitud del usuario, la interfaz principal es **PBX → PBX Configuration → Inbound Call Control → CallFlow Hooks**. `category`/`embedcategory` registran esa categoría en el menú PBX; no se modifica el editor del IVR ni se añade un menú mediante JavaScript. El shell normal muestra Aplicar cambios y el módulo marca `needreload` al guardar/sincronizar. Desde 0.2.7 se retira el menú y recurso ACL del acceso nativo anterior, sin retirar privilegios de pbxadmin ni cambiar destinos. El RPM deja de instalar esa página. En Issabel 4 embebido se comprueba además `hasModulePrivilege` del framework, porque su wrapper construye `AMP_user` como admin. La sección PBX se comprueba en todos los accesos PBX. Si existe una sesión Issabel, se exige además su permiso de módulo incluso sin embeber, para no confiar en un AMP admin heredado. Cuando falta el ACL del framework se deniega y se indica abrir desde Configuración PBX de Issabel. Un login PBX independiente sin sesión Issabel conserva su control de sección. Los accesos PBX embebido e independiente comparten formulario y backend. El RPM instala el núcleo compartido; el `.tgz` conserva sólo la estructura del puente.
 
 Guardar valida y reemplaza el .conf que consumen nuevas ejecuciones AGI. Aplicar regenera el dialplan; no se agrega configuración pendiente/activa ni recarga automática en esta corrección de menú y diseño.
 
@@ -20,9 +20,9 @@ La investigación [del registro nativo](research/addon-nativo-issabel.md) respal
 ## Interfaz administrativa
 
 - Listar perfiles y su estado, crear/editar un perfil y descubrir extensiones instaladas.
-- Generar campos desde el mismo esquema que consume el administrador JSON existente. En 0.2.6, reutilizar los selectores estándar PBX para los dos destinos y el catálogo System Recordings para el audio DTMF, con opción manual y sin modificar el esquema .conf/runtime. Ver [APIs verificadas](research/selectores-pbx.md).
+- Generar campos desde el mismo esquema que consume el administrador JSON existente. En 0.2.7, reutilizar los selectores estándar PBX para los dos destinos y el catálogo System Recordings para el audio DTMF, sin modo manual, con popovers de alta PBX y conservación de valores actuales. Nombre del perfil agrega display_name opcional, con fallback al identificador para archivos anteriores; el contrato JSON/AGI no cambia. Ver [APIs verificadas](research/selectores-pbx.md).
 - Mantener la misma configuración `.conf`, validación, control de versión y tratamiento de secretos.
-- Guardar y sincronizar únicamente Custom Destinations propios mediante el adaptador PBX.
+- Publicar destinos propios mediante callbacks PBX; preservar registros Custom Destinations existentes sin duplicar destinos de perfiles cargados desde .conf.
 - Mostrar el destino que debe seleccionarse en el IVR normal y si hay cambios pendientes de aplicar mediante el flujo PBX habitual.
 - Validar acceso nativo y CSRF en cada operación de escritura. El proceso web no recibe privilegios root; la instalación de software permanece en CLI/RPM.
 
@@ -43,7 +43,7 @@ La descarga/preparación y la instalación son pasos distinguibles. Si la descar
 1. Comprobar Issabel/framework/PBX, Python >=3.6, PHP >=5.4, usuario efectivo de los servicios y Custom Destinations; informar dependencias faltantes. Conservar Python del sistema. No cambiar los repositorios del sistema ni actualizar globalmente la PBX.
 2. Obtener o construir el paquete fijado y verificarlo antes de instalar.
 3. Instalar código con propiedad/permisos de paquete; configurar acceso a `.conf` según los usuarios efectivos de web y Asterisk. Preservar una configuración existente y verificar permisos/SELinux sin deshabilitarlo.
-4. Registrar módulo nativo y ACL, conservando permisos previamente configurados; registrar el adaptador PBX con su gestor. Evitar duplicados y recursos ajenos.
+4. Registrar el módulo PBX con su gestor y retirar únicamente el menú/ACL externos anteriores; conservar permisos de pbxadmin. Evitar duplicados y recursos ajenos.
 5. Validar configuración y sincronizar destinos propios. Informar el resultado de cada fase y el paso de aplicar configuración; no confundir instalación parcial con éxito ni prometer una transacción entre recursos diferentes.
 6. Verificar versiones, menú, acceso y registro. La llamada real y el audio se comprueban en la VM.
 

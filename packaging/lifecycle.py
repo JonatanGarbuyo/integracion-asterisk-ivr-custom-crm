@@ -39,7 +39,7 @@ class Lifecycle:
         if sys.version_info < (3, 6):
             raise RuntimeError('Se requiere Python >=3.6')
         command(['rpm', '-q', 'issabel-framework', 'issabelPBX'])
-        for executable in ['module_admin', 'issabel-menumerge', 'issabel-menuremove', 'asterisk']:
+        for executable in ['module_admin', 'asterisk']:
             self.executable(executable)
         listing = command([self.executable('module_admin'), 'list'])
         if not re.search(r'^customappsreg\s+\S+\s+Enabled\s*$', listing, re.M):
@@ -138,16 +138,16 @@ class Lifecycle:
             # Module Administration's permission pass may assign web code to the
             # service user. Restore ownership only for this addon's code.
             command(['chown', '-R', 'root:root', str(self.core),
-                     str(self.path('/var/www/html/modules/callflowhooks')),
                      str(self.path('/var/www/html/admin/modules/callflowhooks'))])
             # Same-version module_admin install can skip install.php entirely.
             self.phase = 'pbx-destinations'
             self.record('installing')
             if not self.probe('synchronize').get('ok'):
                 raise RuntimeError('No se pudo validar configuración y sincronizar destinos')
-            self.phase = 'native-menu'
+            self.phase = 'retire-native-menu'
             self.record('installing')
-            command([self.executable('issabel-menumerge'), str(self.core / 'menu.xml')])
+            if not self.probe('retire-native').get('ok'):
+                raise RuntimeError('No se pudo retirar el menú anterior')
             self.phase = 'verify'
             self.record('installing')
             self.verify()
@@ -163,10 +163,8 @@ class Lifecycle:
         if not re.search(r'^callflowhooks\s+'+re.escape(version['version'])+r'\s+Enabled\s*$', listing, re.M):
             raise RuntimeError('El puente PBX no está habilitado con la versión instalada')
         framework = self.probe('framework')
-        if not framework.get('menu') or not framework.get('acl'):
-            raise RuntimeError('Falta registro de menú o ACL nativos')
-        if not self.path('/var/www/html/modules/callflowhooks/index.php').is_file():
-            raise RuntimeError('Falta la página nativa')
+        if framework.get('menu') or framework.get('acl'):
+            raise RuntimeError('Persiste el menú o ACL anterior; repetir instalación')
         if not self.probe('configuration').get('ok'):
             raise RuntimeError('Configuración o destinos incompletos')
         return version
@@ -194,9 +192,8 @@ class Lifecycle:
         if not self.probe('reload').get('ok'):
             raise RuntimeError('No se pudo regenerar la PBX; el código se conserva, repetir desinstalación tras corregir')
         self.phase = 'remove-native-menu'
-        framework = self.probe('framework')
-        if framework.get('menu') or framework.get('acl'):
-            command([self.executable('issabel-menuremove'), 'callflowhooks'])
+        if not self.probe('retire-native').get('ok'):
+            raise RuntimeError('No se pudo retirar el menú anterior')
         self.phase = 'removed'
         self.record('removed')
 

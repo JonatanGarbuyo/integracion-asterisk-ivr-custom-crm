@@ -73,7 +73,7 @@ class PBXForm(AdminBoundary, unittest.TestCase):
         self.assertIn('name="display" value="callflowhooks"', form)
         post = dict(self.profile(), configuration_version=self.request('describe')['configuration_version'], csrf_token='test-token')
         created = self.web({'action':'save', 'surface':'embedded', 'post':post})
-        self.assertIn('Custom Destinations', created['html'])
+        self.assertIn('CallFlow Hooks →', created['html'])
         self.assertEqual(created['reloads'], 1)
         listing = self.web({'action':'view', 'surface':'embedded'})['html']
         self.assertIn('Nuevo perfil', listing)

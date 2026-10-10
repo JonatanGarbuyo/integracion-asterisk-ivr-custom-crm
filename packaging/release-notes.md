@@ -1,17 +1,19 @@
-CallFlow Hooks 0.2.6: selectores nativos de destinos y grabaciones.
+CallFlow Hooks 0.2.7 — integración PBX y perfiles con nombre editable.
 
-- Destino siguiente y contingencia reutilizan el selector del IVR: categoría y destino PBX, incluidas colas e internos.
-- Audio para solicitar dígitos lista grabaciones simples de System Recordings, con Sin audio.
-- Conserva entrada manual, perfiles existentes, credenciales, borradores y validación. Los IDs de audio se resuelven al guardar a un nombre relativo; AGI y .conf mantienen su contrato.
-- El audio seleccionado se usa para entrada DTMF, sin añadir un saludo general. Los archivos/destinos que se eliminen fuera del addon requieren revisar los perfiles.
+- Ayudas explican destino al continuar y destino ante fallo/deshabilitado.
+- Nombre del perfil editable; identificador y referencias IVR estables.
+- Selectores sin modo manual, con popovers de alta de los módulos PBX. Valores actuales ajenos al catálogo se conservan como opción.
+- CallFlow Hooks aparece como categoría de destinos, con perfiles y enlace de edición.
+- Perfil actualizado es breve; el shell muestra Aplicar cambios.
+- Se retira menú/ACL externo y su página del RPM. Se preservan permisos de Configuración PBX.
 
-Sigue en PBX Configuration → Inbound Call Control. Guardar actualiza el .conf; Aplicar cambios regenera el dialplan. No aplica automáticamente ni introduce staging.
-
-El usuario confirmó instalación de 0.2.5 y anteriormente una llamada IVR → AGI → interno101 atendido. Los selectores, audio audible, contingencia y permisos efectivos requieren prueba en la VM; Issabel 5 sigue pendiente. No incorpora Afiliados CRM ni respuesta de cola.
+Instalación de laboratorio: 
 
 ```bash
-curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.6/tools/install.py -o /tmp/callflow-install.py
-sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.6
+curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.7/tools/install.py -o /tmp/callflow-install.py
+sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.7
 ```
 
-Actualización directa sin Git ni rpm-build, conservando perfiles. El instalador verifica versión, commit, SHA256 y dependencias. Para sólo descargar: agregar `--prepare-only --output /tmp/callflow-rpm`.
+Para empezar limpio: quitar referencias IVR/rutas y Aplicar cambios; esperar llamadas terminadas; desinstalar con rpm -e issabel-callflow-hooks. Sólo si terminó bien, eliminar /etc/asterisk/callflow-hooks y /var/lib/callflow-hooks. Esto borra perfiles/credenciales. No forzar scriptlets ni borrar dialplan generado.
+
+Se comprueba contra fronteras simuladas y procesos reales; popovers/nombres/categoría y migración efectiva necesitan VM. Issabel5 pendiente. No incorpora Afiliados CRM ni respuesta de cola.

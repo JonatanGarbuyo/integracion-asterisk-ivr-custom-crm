@@ -35,13 +35,13 @@ class NativePackage(unittest.TestCase):
             self.assertEqual(manifest['commit'],commit)
             package = output/manifest['package']
             listing = subprocess.check_output(['rpm','-qpl',str(package)],universal_newlines=True)
-            for path in ['/var/www/html/modules/callflowhooks/index.php',
-                         '/var/www/html/admin/modules/callflowhooks/functions.inc.php',
+            for path in ['/var/www/html/admin/modules/callflowhooks/functions.inc.php',
                          '/var/www/html/admin/modules/callflowhooks/pbx-selectors.php',
                          '/usr/share/callflow-hooks/backend/entry.py',
-                         '/usr/share/callflow-hooks/menu.xml', '/usr/share/callflow-hooks/version.json']:
+                         '/usr/share/callflow-hooks/version.json']:
                 self.assertIn(path,listing)
             self.assertNotIn('/var/www/html/admin/modules/callflowhooks/backend/',listing)
+            self.assertNotIn('/var/www/html/modules/callflowhooks', listing)
             scripts = subprocess.check_output(['rpm','-qp','--scripts',str(package)],universal_newlines=True)
             self.assertIn('lifecycle.py install',scripts)
             self.assertIn('lifecycle.py remove',scripts)
