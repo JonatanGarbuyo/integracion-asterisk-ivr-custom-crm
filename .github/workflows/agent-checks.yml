@@ -1,0 +1,81 @@
+name: CallFlow automation checks
+
+on:
+  push:
+    branches: [main, feat/callflow-agent-automation]
+    paths: ['tools/agent_*.py', 'tests/automation/**', '.github/workflows/agent*.yml', 'docs/agents/opencode.md']
+  pull_request:
+    paths: ['tools/agent_*.py', 'tests/automation/**', '.github/workflows/agent*.yml', 'docs/agents/opencode.md']
+
+permissions:
+  contents: read
+
+jobs:
+  application-gates:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: controls
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: c1132d9c575d7aa1055bdb551161d96e8ef753f9
+          path: addon
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '5.4'
+          extensions: openssl
+          coverage: none
+      - name: Install laboratory build dependency
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y rpm
+      - name: Exercise actual gates on published laboratory addon
+        run: python3 controls/tools/agent_gates.py "$GITHUB_WORKSPACE/addon"
+  offline:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test orchestration without credentials or models
+        run: python3 -m unittest discover -s tests/automation -v
+      - name: Check workflow syntax
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7 -color
+  cli:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify pinned CLI contract without API keys
+        run: |
+          npm install -g opencode-ai@1.18.30
+          test "$(opencode --version)" = '1.18.30'
+          opencode run --help > "$RUNNER_TEMP/opencode-help.txt" 2>&1 || test "$?" = 1
+          for flag in --auto --model --format; do
+            grep -F -- "$flag" "$RUNNER_TEMP/opencode-help.txt"
+          done
+      - name: Validate fixed model configuration without invoking models
+        run: |
+          OPENCODE_CONFIG_CONTENT="$(python3 -c 'import json; from tools.agent_flow import config, MODELS; print(json.dumps(config(MODELS["implement"], False)))')"
+          export OPENCODE_CONFIG_CONTENT
+          export OPENCODE_ZEN_API_KEY=offline-placeholder
+          export XDG_CONFIG_HOME="$RUNNER_TEMP/opencode-config"
+          export XDG_DATA_HOME="$RUNNER_TEMP/opencode-data"
+          export OPENCODE_DISABLE_DEFAULT_PLUGINS=true
+          export OPENCODE_DISABLE_CLAUDE_CODE=true
+          mkdir -p "$RUNNER_TEMP/opencode-empty"
+          cd "$RUNNER_TEMP/opencode-empty"
+          opencode debug config > "$RUNNER_TEMP/opencode-validated-config.json"

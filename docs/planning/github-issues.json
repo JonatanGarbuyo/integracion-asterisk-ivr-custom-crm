@@ -252,6 +252,13 @@
         27,
         28
       ]
+    },
+    {
+      "key": "callflow-automation",
+      "number": 31,
+      "title": "Automatización OpenCode: tickets, pruebas y revisiones externas",
+      "parent": 2,
+      "blocked_by": []
     }
   ]
 }

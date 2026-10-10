@@ -51,3 +51,7 @@ El [PR del prototipo Afiliados CRM](https://github.com/JonatanGarbuyo/integracio
 ## Relaciones
 
 El manifiesto conserva las relaciones históricas y añade las nueve entregas activas como sub-issues de la especificación, con sus bloqueos aprobados. El workflow de planificación sincroniza esas relaciones nativas; los tickets históricos cerrados no forman parte de la frontera activa.
+
+## Automatización de desarrollo
+
+[OpenCode: tickets, pruebas y revisiones externas](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/31) está autorizado como preparación separada. Ver [activación y límites](../agents/opencode.md). No cambia los bloqueos ni la autorización de las entregas del addon.

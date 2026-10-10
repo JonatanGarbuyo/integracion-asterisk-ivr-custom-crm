@@ -23,3 +23,9 @@ Antes de cambiar vocabulario o alcance, leer `CONTEXT.md` y `docs/agents/domain.
 - Completar cambios y validación de laboratorio antes de preparar un piloto. Una publicación documental o un ticket listo no certifican la PBX de producción.
 - Conservar las propuestas de política como propuestas hasta que el usuario las acuerde; registrar los bloqueos externos en la issue.
 - Al finalizar una entrega, informar conducta observada, validación y límites en la issue y el PR.
+
+## Workers externos
+
+- Seguir [OpenCode en Actions](docs/agents/opencode.md). Sólo implementar la issue abierta autorizada, con `ready-for-agent` y sus dependencias cerradas.
+- No cambiar los controles de automatización, workflows, política de agentes ni modelos desde un worker. No leer/transmitir credenciales ni datos reales del cliente; usar mocks de laboratorio.
+- No hacer commit, push, merge, release ni deploy desde el modelo. La orquestación publica sólo el commit que aprobó checks y ambas revisiones. Informar decisiones pendientes en vez de ampliar alcance.
