@@ -37,6 +37,8 @@ PRs creados con GITHUB_TOKEN no disparan automáticamente otros workflows. Los c
 
 Los workers no pueden publicar cambios a workflows, controles de automatización, políticas de agentes ni archivos de secretos. Ese trabajo requiere un PR separado revisado. Se rechazan configuraciones/plugins OpenCode propias del árbol de trabajo para evitar cambiar los modelos fijados. No es un aislamiento contra código deliberadamente hostil: se trabaja en repositorio, actores y tickets aprobados, en runners efímeros.
 
+Los checks pueden generar RPMs y archivos de laboratorio ignorados por Git. Antes de cada worker se captura su contenido y permisos: se permite que esos artefactos permanezcan sin cambios durante una corrección; añadir, modificar o borrar archivos ignorados desde el worker detiene el flujo. Los enlaces simbólicos también se rechazan. Esta comprobación no permite editar archivos protegidos ni omitir los nuevos checks y revisiones del candidato corregido.
+
 No enviar credenciales, `.env`, datos reales de afiliados ni configuración operativa del cliente. Los modelos Contributor/gratuitos pueden usar prompts para mejorar modelos; aquí reciben sólo código y mocks de laboratorio. El runner recibe la clave del proveedor necesaria para invocarlo y el token GitHub limitado de orquestación; no recibe secretos de producción.
 
 Actions conserva resultado, fases, commit, modelos y enlace al PR en metadata. No se publican transcripciones de modelos ni configuración con claves. Si falta la clave, falla un modelo/check o la revisión requiere decisión, corregir la causa antes de repetir. Fallo de publicación de PR suele requerir revisar el permiso de creación de PRs. El resultado simulado/offline no demuestra conexión real con Zen ni instalación en Issabel.

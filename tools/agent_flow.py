@@ -200,14 +200,27 @@ def protected(path):
             or any(part.startswith(".env") or part == "AGENTS.md" for part in pathlib.PurePosixPath(path).parts))
 
 
-def inspect_changes(workspace, previous):
+def ignored_snapshot(workspace):
+    files = {}
+    for name in git(workspace, "ls-files", "--others", "--ignored", "--exclude-standard").splitlines():
+        path = workspace / name
+        if path.is_symlink():
+            raise Stop("symlink-change")
+        files[name] = (path.stat().st_mode, hashlib.sha256(path.read_bytes()).hexdigest())
+    return files
+
+
+def inspect_changes(workspace, previous, ignored_before=None):
     if git(workspace, "rev-parse", "HEAD") != previous:
         raise Stop("worker-changed-head")
     # Includes ignored files: a worker must not hide configuration or instructions.
     changed = git(workspace, "diff", "--name-only", previous).splitlines()
     untracked = git(workspace, "ls-files", "--others", "--exclude-standard").splitlines()
-    ignored = git(workspace, "ls-files", "--others", "--ignored", "--exclude-standard").splitlines()
-    paths = changed + untracked + ignored
+    # Checks may have created ignored RPMs/fixtures before this worker. They may
+    # remain untouched; the worker must not add, remove or modify ignored files.
+    if ignored_snapshot(workspace) != ({} if ignored_before is None else ignored_before):
+        raise Stop("ignored-file-change")
+    paths = changed + untracked
     if any(protected(path) for path in paths):
         raise Stop("protected-path-change")
     for path in paths:
@@ -421,8 +434,9 @@ def execute(args, api, evidence=None):
     for attempt in range(2):
         evidence["stage"] = "implement"
         evidence["attempt"] = attempt + 1
+        ignored_before = ignored_snapshot(workspace)
         worker(workspace, "implement", prompt, writable=True)
-        inspect_changes(workspace, previous)
+        inspect_changes(workspace, previous, ignored_before)
         git(workspace, "add", "--all")
         git(workspace, "-c", "user.name=CallFlow Agent", "-c", "user.email=callflow-agent@users.noreply.github.com",
             "-c", "core.hooksPath=/dev/null", "commit", "-m", "Implement approved ticket #%s (candidate %s)" % (issue["number"], attempt + 1))
