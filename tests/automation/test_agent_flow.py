@@ -166,7 +166,7 @@ class GitBoundary(unittest.TestCase):
         flow.git(self.repo, 'config', 'user.name', 'Fixture')
         flow.git(self.repo, 'config', 'user.email', 'fixture@example.invalid')
         for path, value in {'module/backend/entry.py': '# lab\n', 'tests/test_application.py': '# fixture\n',
-                            '.gitignore': '__pycache__/\nignored/\n'}.items():
+                            '.gitignore': '__pycache__/\nignored/\ndist/\nartifacts/\n'}.items():
             file = self.repo / path
             file.parent.mkdir(parents=True, exist_ok=True)
             file.write_text(value)
@@ -236,6 +236,61 @@ class GitBoundary(unittest.TestCase):
             self.execute(gates=lambda *args: (_ for _ in ()).throw(flow.Stop('gate-failed')))
         self.assertFalse(self.branch_exists())
         self.assertFalse(self.api.writes)
+
+    def test_review_correction_preserves_ignored_artifacts_from_trusted_gates(self):
+        attempts = []
+        def gates(control, workspace):
+            for name in ('dist/package.rpm', 'artifacts/check.txt'):
+                path = workspace / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b'trusted check artifact')
+        def worker(workspace, axis, prompt, writable=False):
+            if axis == 'implement':
+                attempts.append(axis)
+                return self.implement(workspace, axis, prompt, writable)
+            status = 'FAIL' if len(attempts) == 1 else 'PASS'
+            return 'CFH_REVIEW:' + axis + ':' + flow.git(workspace, 'rev-parse', 'HEAD') + ':' + status
+        result = self.execute(worker, gates)
+        self.assertEqual(result['status'], 'draft-published')
+        self.assertEqual(len(attempts), 2)
+        self.assertEqual(result['reviews'], {'spec': 'PASS', 'standards': 'PASS'})
+        self.assertTrue(self.branch_exists())
+
+    def rejected_ignored_mutation(self, mutation, reason='ignored-file-change'):
+        attempts = []
+        def gates(control, workspace):
+            path = workspace / 'dist/package.rpm'
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b'trusted artifact')
+        def worker(workspace, axis, prompt, writable=False):
+            if axis == 'implement':
+                attempts.append(axis)
+                if len(attempts) == 2:
+                    mutation(workspace / 'dist/package.rpm')
+                return self.implement(workspace, axis, prompt, writable)
+            return 'CFH_REVIEW:' + axis + ':' + flow.git(workspace, 'rev-parse', 'HEAD') + ':FAIL'
+        with self.assertRaisesRegex(flow.Stop, reason):
+            self.execute(worker, gates)
+        self.assertFalse(self.branch_exists())
+        self.assertFalse(self.api.writes)
+
+    def test_worker_cannot_add_ignored_file_after_checks(self):
+        self.rejected_ignored_mutation(lambda path: path.with_name('.env').write_text('untrusted'))
+
+    def test_worker_cannot_modify_ignored_artifact_after_checks(self):
+        self.rejected_ignored_mutation(lambda path: path.write_bytes(b'modified'))
+
+    def test_worker_cannot_remove_ignored_artifact_after_checks(self):
+        self.rejected_ignored_mutation(lambda path: path.unlink())
+
+    def test_worker_cannot_change_ignored_artifact_permissions_after_checks(self):
+        self.rejected_ignored_mutation(lambda path: path.chmod(0o777))
+
+    def test_worker_cannot_replace_ignored_artifact_with_symlink_after_checks(self):
+        def replace(path):
+            path.unlink()
+            path.symlink_to('../module/backend/entry.py')
+        self.rejected_ignored_mutation(replace, 'symlink-change')
 
     def test_worker_head_change_and_protected_paths_fail_before_gates(self):
         for name in ('AGENTS.md', '.github/workflows/evil.yml', 'tools/agent_flow.py', 'tests/automation/evil.py', '.env'):
