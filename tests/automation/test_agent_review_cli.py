@@ -94,8 +94,8 @@ print(json.dumps({'type':'text','part':{'text':'Independent final findings\n'+ma
             'MUTATE', repr(mutate)).replace('STATUS', repr(status)))
         path.chmod(0o755)
 
-    def run_review(self, axis='spec'):
-        output = self.root / ('evidence-' + axis)
+    def run_review(self, axis='spec', output=None):
+        output = output or self.root / ('evidence-' + axis)
         process = subprocess.run([sys.executable, str(SCRIPT), '--pr', '91', '--axis', axis,
                                   '--head', self.head, '--base', self.base, '--workspace', str(self.repo),
                                   '--profiles', str(self.profiles), '--evidence', str(output)],
@@ -141,6 +141,14 @@ print(json.dumps({'type':'text','part':{'text':'Independent final findings\n'+ma
         self.assertNotEqual(process.returncode, 0)
         self.assertEqual(result['reason'], 'review-mutated-candidate')
         self.assertFalse((self.root / 'comments.json').exists())
+
+    def test_evidence_inside_candidate_is_rejected_without_modifying_worktree(self):
+        self.provider()
+        process, result, output = self.run_review(output=self.repo / 'invalid-evidence')
+        self.assertNotEqual(process.returncode, 0)
+        self.assertEqual(result['reason'], 'review-input-invalid')
+        self.assertEqual(self.git('status', '--porcelain'), '')
+        self.assertFalse(output.exists())
 
     def test_real_controller_gate_failure_keeps_validated_candidate_before_checks(self):
         # Real application Git/worktree and real failing gate; only GitHub/OpenCode are doubles.

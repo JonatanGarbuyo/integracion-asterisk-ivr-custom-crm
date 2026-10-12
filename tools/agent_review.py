@@ -71,9 +71,12 @@ def main(argv=None):
     result = {'status': 'failed', 'axis': args.axis, 'head': args.head}
     directory = Path(args.evidence).resolve()
     workspace = Path(args.workspace).resolve()
+    if directory == workspace or workspace in directory.parents:
+        result['reason'] = 'review-input-invalid'
+        print(json.dumps(result))
+        return 1
     try:
-        if (not all(re.fullmatch('[0-9a-f]{40}', value) for value in (args.head, args.base))
-                or directory == workspace or workspace in directory.parents):
+        if not all(re.fullmatch('[0-9a-f]{40}', value) for value in (args.head, args.base)):
             raise flow.Stop('review-input-invalid')
         api = flow.GitHub()
         approved_bootstrap(api, args.pr, args.head, args.base)
