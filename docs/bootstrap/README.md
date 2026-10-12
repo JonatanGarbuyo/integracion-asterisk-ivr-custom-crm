@@ -2,6 +2,8 @@
 
 ## Frontera activa: #41
 
+**Pausado tras run 38265908134:** Spec y Standards FAIL; el artifact sólo contiene estados, sin fuente ni hallazgos. No relanzar. La auditoría y propuesta de una excepción operativa mínima están en #41 y requieren autorización explícita antes de cambiar controles. El contrato de roles actual sigue vigente.
+
 El intento amplio de #40 (run 38263830613) falló en checks y el legado conservó sólo `result.json`; no hay fuente recuperable ni PR. #40 queda pausado. Primero se implementa #41: conservación de candidatos, recuperación desde worktree limpio y ruta de revisión del PR de controles durante bootstrap. Leer su ticket y comentarios completos; su alcance específico limita este plan general. Escribir esa entrega en `docs/bootstrap/recovery-foundation` y sus pruebas públicas en `tests/test_recovery_foundation.py`. No reconstruir el candidato perdido desde logs ni reimplementar todo el orquestador en esta entrega.
 
 Los checksums del handoff se producen con una herramienta determinista escrita por OpenCode que ejecuta el operador confiable. No pedir al modelo hashes inventados ni permitir que el operador complete código. Los reviews/CI del HEAD final siguen siendo obligatorios. Después de aceptar #41 se retoma #40 y, al completar ese flujo, #38.
