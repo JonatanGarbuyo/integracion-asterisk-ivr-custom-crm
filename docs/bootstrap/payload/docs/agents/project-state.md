@@ -4,10 +4,10 @@ Reconciliar con GitHub antes de actuar. Este archivo no autoriza trabajo adicion
 
 | Área | Evidencia y estado |
 |---|---|
-| Control main | `db138b2c3bd14c61313d3a1dd0beb17a2306089d`; orquestación legado |
+| Control main | `4528057d497268a0e08d52b3e364702ab24657e0`; bootstrap #42 fusionado; árbol `72aeb59adb6ee4848d26fa551f29af2d907e87aa` idéntico al HEAD revisado |
 | Base del addon | v0.2.8 = `bc2e0a7c675b2ffbd420a2652babcd7bca107e47`; base permitida avanzó a `90798e5749c06136d6b6e34991c2a40382dde668` con planificación `docs/bootstrap` únicamente |
 | Plan/spec | mapa #1, spec #2; automatización #31; bootstrap #40 y primera frontera #41 |
-| Trabajo actual | #41 bloqueado tras dos reviews FAIL y pérdida de fuente/hallazgos; #40 y #38 pausados; ninguna ejecución nueva |
+| Trabajo actual | continuar #41 por OpenCode con evidencia durable; #40/#38 pausados |
 | Último #38 | run 38256917004: failure/checks; 73 tests PASS, 1 FAIL, 2 skip |
 | Candidato fallido | `a9d1b6394bdfb9194fc3ad269f2cd5a388478f11`, sólo local; sin PR remoto ni parche recuperable |
 | Artifact | 11751170239, sólo result.json; no fuente recuperable ni Spec/Standards ejecutados |
@@ -24,7 +24,9 @@ Reconciliar con GitHub antes de actuar. Este archivo no autoriza trabajo adicion
 
 ## Siguiente frontera
 
-Resolver la propuesta de excepción operativa acotada registrada en #41 antes de ejecutar más workers. Está pendiente de autorización: permitir el handoff en el prompt confiable y conservar candidato/informes finales ante fallo, sin modificar producto ni aceptar un merge sin gates. No afirmar que esa excepción esté aprobada ni cambiar código de controles desde el operador bajo el contrato actual. Luego completar #41 por OpenCode, verificar revisiones/CI del HEAD final y retomar #40/#38. No nuevos tickets/reintentos para repetir esta pérdida. #22/#23 y producción siguen fuera de alcance.
+Bootstrap #42 aceptado: HEAD `446db6fd183571e02ec84d9a7b11bf6a64a4bbef`, 41 tests locales PASS, Spec6130604382 PASS, Standards6130932011 PASS, CI38293819145 success, reviews38293819263 intento2 success. Excepción única del operador finalizada. No release/deploy del addon. Captura de cambios no comprometidos/recuperación integral y #41 completo siguen pendientes.
+
+Continuar #41 por OpenCode después de #42: captura de cambios no comprometidos, recuperación/verificación integral y reviews del handoff publicado. Leer y reutilizar los controles aceptados de reference; el operador vuelve a planificación/publicación/aceptación, sin más código propio. #40/#38 y producción mantienen sus bloqueos. Los candidatos antiguos no se recuperan retrospectivamente.
 
 ## Brecha del legado
 

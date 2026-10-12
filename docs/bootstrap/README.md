@@ -2,7 +2,9 @@
 
 ## Frontera activa: #41
 
-**Pausado tras run 38265908134:** Spec y Standards FAIL; el artifact sólo contiene estados, sin fuente ni hallazgos. No relanzar. La auditoría y propuesta de una excepción operativa mínima están en #41 y requieren autorización explícita antes de cambiar controles. El contrato de roles actual sigue vigente.
+Continuar desde la base limpia publicada con los controles de #42. Completar cambios no comprometidos tras terminación confirmada, recuperación/verificación integral y ruta de review/CI del handoff final. El candidato comprometido e informes ya se conservan; no reconstruir candidatos antiguos perdidos desde logs. #40/#38 siguen pausados. Leer criterios y comentarios actualizados de #41.
+
+**Bootstrap aceptado y fusionado:** PR #42, main `4528057d497268a0e08d52b3e364702ab24657e0`. Spec PASS + Standards PASS + CI success del HEAD final `446db6fd183571e02ec84d9a7b11bf6a64a4bbef`; timeout inicial no aceptado. Excepción única del operador finalizada: toda implementación restante vuelve a OpenCode. `reference/` contiene ahora copias exactas del controlador aceptado, captura y reviews, y pruebas públicas CLI; no reintroducir el legado ni imitar sus mocks internos.
 
 El intento amplio de #40 (run 38263830613) falló en checks y el legado conservó sólo `result.json`; no hay fuente recuperable ni PR. #40 queda pausado. Primero se implementa #41: conservación de candidatos, recuperación desde worktree limpio y ruta de revisión del PR de controles durante bootstrap. Leer su ticket y comentarios completos; su alcance específico limita este plan general. Escribir esa entrega en `docs/bootstrap/recovery-foundation` y sus pruebas públicas en `tests/test_recovery_foundation.py`. No reconstruir el candidato perdido desde logs ni reimplementar todo el orquestador en esta entrega.
 
@@ -10,7 +12,7 @@ Los checksums del handoff se producen con una herramienta determinista escrita p
 
 El usuario autorizó completar el flujo el 12/10/2026: ChatGPT planifica y acepta; OpenCode implementa/corrige y ejecuta Standards/Spec; los controles publican. La aceptación exige gates completos, ambas revisiones PASS y CI exitoso del HEAD actual antes de cada merge. El producto #38 permanece pausado.
 
-El controlador de main `db138b2c3bd14c61313d3a1dd0beb17a2306089d` permite editar `docs/`, `tools/` y `tests/`, pero protege los controles vivos y rechaza `.opencode`. Este directorio permite generar un handoff sin ampliar esos permisos ni entregar el token GitHub al modelo.
+El controlador aceptado de main `4528057d497268a0e08d52b3e364702ab24657e0` permite editar `docs/`, `tools/` y `tests/`, pero protege los controles vivos y rechaza `.opencode`. Este directorio permite generar un handoff sin ampliar esos permisos ni entregar el token GitHub al modelo.
 
 ## Entrada del implementador
 
