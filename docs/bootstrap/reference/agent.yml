@@ -1,0 +1,108 @@
+name: CallFlow agent
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Comprobar modelos, implementar ticket o corregir PR
+        type: choice
+        options: [probe, ticket, fix]
+        default: probe
+        required: true
+      number:
+        description: Número de issue o PR (vacío para probe)
+        type: string
+        required: false
+      base:
+        description: Rama aprobada de trabajo
+        type: choice
+        options: [main, feat/callflow-generic-profile]
+        default: feat/callflow-generic-profile
+        required: true
+
+concurrency:
+  group: callflow-agent
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  agent:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      ((github.event.comment.body == '/agent-ticket' || github.event.comment.body == '/agent-fix-cycle') &&
+      (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'COLLABORATOR'))
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out trusted controls
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate actor, command and ticket
+        id: guard
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 tools/agent_flow.py --guard
+      - name: Set up Python
+        if: steps.guard.outputs.run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Set up Node
+        if: steps.guard.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Set up PHP for application tests
+        if: steps.guard.outputs.run == 'true' && steps.guard.outputs.mode != 'probe'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '5.4'
+          extensions: openssl
+          coverage: none
+      - name: Install RPM tools
+        if: steps.guard.outputs.run == 'true' && steps.guard.outputs.mode != 'probe'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+      - name: Install pinned OpenCode
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          npm install -g opencode-ai@1.18.30
+          test "$(opencode --version)" = '1.18.30'
+      - name: Run bounded workers and checks
+        if: steps.guard.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
+          CFH_OPERATION: ${{ steps.guard.outputs.mode }}
+          CFH_NUMBER: ${{ steps.guard.outputs.number }}
+          CFH_BASE: ${{ steps.guard.outputs.base }}
+        run: |
+          python3 tools/agent_flow.py \
+            --mode "$CFH_OPERATION" --number "${CFH_NUMBER:-0}" --base "$CFH_BASE" \
+            --workspace "$RUNNER_TEMP/callflow-agent-workspace" \
+            --evidence "$RUNNER_TEMP/callflow-agent-evidence"
+      - name: Upload result metadata
+        if: always() && steps.guard.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: callflow-agent-result-${{ github.run_id }}
+          path: ${{ runner.temp }}/callflow-agent-evidence/*.json
+          if-no-files-found: ignore
+      - name: Publish run summary
+        if: always() && steps.guard.outputs.run == 'true'
+        run: |
+          if [ -f "$RUNNER_TEMP/callflow-agent-evidence/summary.md" ]; then
+            cat "$RUNNER_TEMP/callflow-agent-evidence/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'El flujo no completó sus workers. Revisar la fase que falló; no se autoriza merge ni publicación.' >> "$GITHUB_STEP_SUMMARY"
+          fi
