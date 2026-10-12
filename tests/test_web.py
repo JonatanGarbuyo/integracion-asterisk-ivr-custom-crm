@@ -5,12 +5,12 @@ import shutil
 import subprocess
 import unittest
 
-from boundary_support import AdminBoundary, ROOT
+from boundary_support import UIProfileBoundary, ROOT
 from agi_harness import call
 
 
 @unittest.skipUnless(shutil.which('php'), 'PHP is required; mandatory PHP jobs run in CI')
-class PBXForm(AdminBoundary, unittest.TestCase):
+class PBXForm(UIProfileBoundary, unittest.TestCase):
     def web(self, request):
         environment = dict(os.environ, CFH_TEST_CONFIG=str(self.config),
                            CFH_TEST_PYTHON=os.sys.executable)
@@ -23,7 +23,7 @@ class PBXForm(AdminBoundary, unittest.TestCase):
 
     def test_native_form_renders_schema_registers_destinations_and_generates_entry(self):
         form = self.web({'action': 'view'})
-        self.assertIn('Saludo', form['html'])
+        self.assertIn('Mensaje del handler de ejemplo', form['html'])
         self.assertIn('api_token', form['html'])
         version = self.request('describe')['configuration_version']
         post = dict(self.profile(), configuration_version=version, csrf_token='test-token')

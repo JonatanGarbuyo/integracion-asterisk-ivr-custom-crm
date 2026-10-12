@@ -17,6 +17,13 @@ function callflowhooks_escape($value) {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 }
 
+function callflowhooks_new_identifier() {
+    $strong = false;
+    $random = openssl_random_pseudo_bytes(16, $strong);
+    if (!$random || !$strong) throw new callflowhooks_backend_error('Could not create the profile. Reload the page.');
+    return 'p'.bin2hex($random);
+}
+
 function callflowhooks_entry() {
     // The legacy archive keeps a private copy; RPM owns the shared runtime.
     if (defined('CFH_CORE_DIRECTORY')) return CFH_CORE_DIRECTORY.'/backend/entry.py';

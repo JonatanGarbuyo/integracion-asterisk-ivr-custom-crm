@@ -5,12 +5,12 @@ import shutil
 import subprocess
 import unittest
 
-from boundary_support import AdminBoundary, ROOT
+from boundary_support import UIProfileBoundary, ROOT
 from agi_harness import call
 
 
 @unittest.skipUnless(shutil.which('php'), 'PHP required in CI')
-class IssabelForm(AdminBoundary, unittest.TestCase):
+class IssabelForm(UIProfileBoundary, unittest.TestCase):
     def web(self, **request):
         request['surface'] = 'embedded'
         environment = dict(os.environ, CFH_TEST_CONFIG=str(self.config), CFH_TEST_PYTHON=os.sys.executable)
@@ -35,7 +35,7 @@ class IssabelForm(AdminBoundary, unittest.TestCase):
         self.assertEqual(variables['CALLFLOW_NEXT_DESTINATION'], 'ext-local,201,1')
         self.assertNotIn('private-token', saved['html'])
         edit = self.web(action='view', get={'profile': 'welcome'})
-        self.assertIn('readonly', edit['html'])
+        self.assertIn('type="hidden" name="identifier" value="welcome"', edit['html'])
 
     def test_native_acl_session_and_csrf_reject_without_saving(self):
         post = dict(self.profile(), csrf_token='test-token',
@@ -99,7 +99,7 @@ class IssabelForm(AdminBoundary, unittest.TestCase):
         self.assertNotIn('new-private-token', result['html'])
         self.assertNotIn('new-private-token', self.config.with_suffix('.conf.session').read_text())
         self.assertEqual(self.config.read_bytes(), before)
-        self.assertIn('readonly', self.web(action='view')['html'])
+        self.assertIn('type="hidden" name="identifier" value="welcome"', self.web(action='view')['html'])
 
     @unittest.skipIf(os.geteuid() == 0, 'Permission boundary requires nonroot PHP CI runner')
     def test_write_permission_failure_keeps_draft_and_valid_configuration(self):

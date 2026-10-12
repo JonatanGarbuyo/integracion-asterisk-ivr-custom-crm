@@ -1,18 +1,15 @@
-CallFlow Hooks 0.2.8 — idiomas, segundos y eliminación de perfiles.
+CallFlow Hooks 0.2.9 — formulario integrado al diseño PBX.
 
-- Interfaz en inglés/español según el idioma de Configuración PBX, incluidos campos, ayudas, botones, errores y borradores. Catálogos compilados incluidos.
-- Destino de contingencia / Fail Over Destination y Destino al continuar / Continue Destination.
-- Límites del handler y entrada DTMF en segundos, con fracciones exactas; el .conf conserva milisegundos.
-- Eliminar perfiles mediante POST con confirmación, autorización, CSRF y versión. Lista referencias y bloquea perfiles usados o APIs de uso no disponibles.
-- Retira sólo destinos legacy propios; conserva perfiles y credenciales ajenos ante fallos de limpieza/escritura. Aplicar cambios sigue siendo manual en PBX.
+- Uso y eliminación inmediatamente después del título, con icono y ayuda de referencias como IVR. Se conservan POST, confirmación y comprobaciones del servidor.
+- Un único Nombre del perfil visible; identificador interno oculto y estable, generado al crear. Cambiar el nombre conserva referencias IVR y contextos.
+- Límite del handler y Tiempo para ingresar dígitos sin unidad en la etiqueta ni ayudas permanentes de rangos; entrada en segundos enteros positivos. Configuraciones anteriores con fracciones se conservan hasta elegir expresamente un entero.
+- Mensaje del handler de ejemplo aclara que es texto del ejemplo; el audio DTMF se reproduce al pedir dígitos.
 
-Actualización de laboratorio desde 0.2.7, sin Git:
+Actualizar sin desinstalar, conservando perfiles y credenciales:
 
 ```bash
-curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.8/tools/install.py -o /tmp/callflow-install.py
-sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.8
+curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.9/tools/install.py -o /tmp/callflow-install.py
+sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.9
 ```
 
-No requiere desinstalar. El instalador conserva perfiles, credenciales y referencias IVR. Recargar la página después de actualizar y pulsar Apply Config / Aplicar cambios si hay cambios pendientes.
-
-Implementación revisada en PR #37, con CI Python 3.6/3.9/3.12, PHP 5.4/8.2 y RPM aprobada. La publicación vuelve a ejecutar pruebas y construcción sobre el commit fijado. Idioma efectivo, referencias reales, eliminación y aplicación del dialplan requieren prueba instalada. Issabel 5, CRM y respuesta de cola continúan pendientes.
+Recargar CallFlow Hooks y aplicar los cambios pendientes en Configuración PBX. Confirmar ubicación de acciones, edición de nombre, entrada entera y ayudas en la VM. El usuario confirmó el idioma de v0.2.8; esta publicación no certifica Issabel5 ni agrega CRM/hook de cola.

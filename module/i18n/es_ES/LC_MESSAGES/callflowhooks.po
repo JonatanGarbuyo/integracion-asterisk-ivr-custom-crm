@@ -58,6 +58,9 @@ msgstr "No se pudo completar la operación PBX. Revisar el registro del servidor
 msgid "Could not create the form token."
 msgstr "No se pudo crear token del formulario"
 
+msgid "Could not create the profile. Reload the page."
+msgstr "No se pudo crear el perfil. Recargar la página."
+
 msgid "Could not load the configuration."
 msgstr "No se pudo cargar la configuración."
 
@@ -103,8 +106,8 @@ msgstr "Destino: %s"
 msgid "Destinations synchronized."
 msgstr "Destinos sincronizados. Aplicar configuración."
 
-msgid "Digit Entry Timeout (seconds)"
-msgstr "Tiempo para ingresar dígitos (segundos)"
+msgid "Digit Entry Timeout"
+msgstr "Tiempo para ingresar dígitos"
 
 msgid "Digit Prompt Recording"
 msgstr "Audio para solicitar dígitos"
@@ -139,6 +142,9 @@ msgstr "Ingresar un nombre de variable de canal válido."
 msgid "Enter a valid relative audio filename."
 msgstr "Ingresar un nombre de audio relativo válido."
 
+msgid "Enter a whole number of seconds between 1 and %s."
+msgstr "Ingresar segundos enteros entre 1 y %s."
+
 msgid "Enter an integer between %s and %s."
 msgstr "Ingresar un número entero entre %s y %s."
 
@@ -157,6 +163,9 @@ msgstr "Contexto de ejemplo"
 msgid "Example Credential"
 msgstr "Credencial de ejemplo"
 
+msgid "Example handler message"
+msgstr "Mensaje del handler de ejemplo"
+
 msgid "Fail Over Destination"
 msgstr "Destino de contingencia"
 
@@ -172,8 +181,8 @@ msgstr "Entrada del handler"
 msgid "Handler Options: %s"
 msgstr "Opciones del handler: %s"
 
-msgid "Handler Time Limit (seconds)"
-msgstr "Límite del handler (segundos)"
+msgid "Handler Time Limit"
+msgstr "Límite del handler"
 
 msgid "IVR handler profiles"
 msgstr "Perfiles de handlers desde IVR"
@@ -201,6 +210,12 @@ msgstr "Administrar perfiles junto a los IVR en Configuración PBX."
 
 msgid "Maximum Digits"
 msgstr "Máximo de dígitos"
+
+msgid "Name"
+msgstr "Nombre del perfil"
+
+msgid "Name shown in profile lists and IVR destinations. Renaming preserves existing call references."
+msgstr "Nombre mostrado en listas de perfiles y destinos del IVR. Renombrar conserva las referencias de llamadas existentes."
 
 msgid "New Profile"
 msgstr "Nuevo perfil"
@@ -306,6 +321,9 @@ msgstr "Sincronizar destinos de .conf"
 
 msgid "System Recordings unavailable. The current audio is preserved."
 msgstr "System Recordings no disponible. El audio actual se conserva."
+
+msgid "Text returned in the call context by the example handler. It does not play audio or generate speech."
+msgstr "Texto que el handler de ejemplo devuelve en el contexto de la llamada. No reproduce audio ni genera voz."
 
 msgid "The destination is owned by another configuration."
 msgstr "Destino ocupado por otra configuración"

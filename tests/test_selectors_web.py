@@ -4,7 +4,7 @@ import hashlib
 import unittest
 from html.parser import HTMLParser
 
-from boundary_support import AdminBoundary
+from boundary_support import UIProfileBoundary
 from agi_harness import call
 import test_web
 
@@ -30,7 +30,7 @@ class Selects(HTMLParser):
 
 
 @unittest.skipUnless(shutil.which('php'), 'PHP required in CI')
-class PBXSelectors(AdminBoundary, unittest.TestCase):
+class PBXSelectors(UIProfileBoundary, unittest.TestCase):
     web = test_web.PBXForm.web
 
     def post(self):
@@ -203,7 +203,7 @@ class PBXSelectors(AdminBoundary, unittest.TestCase):
         self.save(post)
         html = self.view(get={'profile':'welcome'})
         self.assertIn('name="display_name" value="Afiliados registrados"', html)
-        self.assertIn('readonly', html)
+        self.assertIn('type="hidden" name="identifier" value="welcome"', html)
         self.assertIn('CallFlow_Hooks', Selects(html).fields['gotocallflow_next_destination'])
         self.assertIn('callflow-profile-welcome,s,1', Selects(html).fields['CallFlow_Hookscallflow_next_destination'])
         variables, _, _ = call(self.config)

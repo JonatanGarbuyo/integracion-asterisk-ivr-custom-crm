@@ -10,7 +10,7 @@ function callflowhooks_message_id($text) {
 }
 function callflowhooks_text($text) {
     $msgid = callflowhooks_message_id($text);
-    $patterns = array('/^Enter text up to ([0-9]+) characters\.$/D'=>'Enter text up to %s characters.', '/^Enter an integer between (-?[0-9]+) and (-?[0-9]+)\.$/D'=>'Enter an integer between %s and %s.', '/^Enter seconds between ([0-9.]+) and ([0-9.]+), with up to three decimal places\.$/D'=>'Enter seconds between %s and %s, with up to three decimal places.');
+    $patterns = array('/^Enter a whole number of seconds between 1 and ([0-9]+)\.$/D'=>'Enter a whole number of seconds between 1 and %s.', '/^Enter text up to ([0-9]+) characters\.$/D'=>'Enter text up to %s characters.', '/^Enter an integer between (-?[0-9]+) and (-?[0-9]+)\.$/D'=>'Enter an integer between %s and %s.', '/^Enter seconds between ([0-9.]+) and ([0-9.]+), with up to three decimal places\.$/D'=>'Enter seconds between %s and %s, with up to three decimal places.');
     foreach ($patterns as $pattern=>$template) if (preg_match($pattern, $msgid, $parts)) {
         array_shift($parts);
         return vsprintf(callflowhooks_text($template), $parts);
