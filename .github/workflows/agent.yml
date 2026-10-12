@@ -91,12 +91,13 @@ jobs:
             --mode "$CFH_OPERATION" --number "${CFH_NUMBER:-0}" --base "$CFH_BASE" \
             --workspace "$RUNNER_TEMP/callflow-agent-workspace" \
             --evidence "$RUNNER_TEMP/callflow-agent-evidence"
-      - name: Upload result metadata
+      - name: Upload candidate evidence and final reports
         if: always() && steps.guard.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: callflow-agent-result-${{ github.run_id }}
-          path: ${{ runner.temp }}/callflow-agent-evidence/*.json
+          path: ${{ runner.temp }}/callflow-agent-evidence/
+          include-hidden-files: true
           if-no-files-found: ignore
       - name: Publish run summary
         if: always() && steps.guard.outputs.run == 'true'
