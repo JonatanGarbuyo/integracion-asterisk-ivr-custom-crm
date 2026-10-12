@@ -58,6 +58,9 @@ fi
 %attr(700,root,root) %dir /var/lib/callflow-hooks
 
 %changelog
+* Mon Oct 12 2026 CallFlow Hooks contributors - 0.2.8-1
+- Localize PBX forms in English/Spanish, edit time limits in seconds and safely delete unused profiles.
+
 * Sat Oct 10 2026 CallFlow Hooks contributors - 0.2.7-1
 - Complete PBX selectors, editable profile names and destination category; retire standalone menu.
 * Fri Oct 09 2026 CallFlow Hooks contributors - 0.2.6-1

@@ -35,11 +35,11 @@ Para preparar el RPM sin instalarlo:
 
 ### Descarga directa sin Git
 
-La prerelease de laboratorio `v0.2.7` distribuye el RPM y `manifest.json`. Para descargar e instalar sin Git ni herramientas de compilación:
+La prerelease de laboratorio `v0.2.8` distribuye el RPM y `manifest.json`. Para descargar e instalar sin Git ni herramientas de compilación:
 
 ```bash
-curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.7/tools/install.py -o /tmp/callflow-install.py
-sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.7
+curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.8/tools/install.py -o /tmp/callflow-install.py
+sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.8
 ```
 
 Esta modalidad requiere `rpm2cpio` y `cpio`, pero no `git` ni `rpmbuild` en la PBX. El workflow publica una prerelease de laboratorio después de las pruebas y la construcción del RPM, desde un tag coincidente o una rama `release/callflow-hooks-vX.Y.Z`. No certifica la instalación efectiva en la VM. El checksum detecta corrupción y se contrasta además la identidad del RPM; no equivale por sí solo a una firma de un editor independiente.
@@ -71,7 +71,9 @@ El `.tgz` de `tools/build.py` sigue siendo únicamente un artefacto del puente I
 
 El usuario confirmó instalación de 0.2.4 y llamada mediante opción 1 explícita del IVR → perfil `example` → AGI → `ext-local,101,1`, con SIP/101 atendido. El usuario confirmó instalación de 0.2.5. Los nuevos selectores de 0.2.7 y la reproducción de audio deben comprobarse en la VM. Audio, contingencia y ACL completos siguen pendientes; un CI verde no confirma menú de la distribución, audio, SELinux, cola ni proveedor real. Guardar actualiza el .conf consumido por nuevas ejecuciones AGI; Aplicar cambios regenera el dialplan, sin staging ni recarga automática.
 
-## Empezar limpio antes de 0.2.7
+La actualización desde 0.2.7 usa el mismo instalador con `--release v0.2.8` y conserva perfiles, credenciales y referencias IVR. No requiere desinstalar ni borrar configuración. Después recargar la página y aplicar los cambios pendientes en PBX Configuration.
+
+## Empezar limpio (opcional)
 
 En la VM, cambiar las opciones del IVR y las rutas que apuntan a CallFlow Hooks por un interno/cola existente, y pulsar Aplicar cambios. Esperar a que no haya llamadas activas. El RPM anterior protege la desinstalación si encuentra referencias o llamadas.
 
@@ -87,7 +89,7 @@ Ejecutar como root:
 
 Esto elimina todos los perfiles y credenciales del addon. Si rpm falla, el bloque se detiene y conserva la configuración; corregir la causa, sin usar --noscripts ni --nodeps. Los archivos de código administrados por el RPM se retiran automáticamente. No borrar archivos de dialplan generado ni directorios de otros módulos. Las copias de respaldo externas no se importan automáticamente.
 
-Después instalar 0.2.7 mediante el instalador publicado, crear un perfil y asignar **CallFlow Hooks → nombre** a la opción del IVR. Guardar y Aplicar cambios. Verificar las ayudas, el renombrado, la lista de grabaciones, popover de crear cola, atención y contingencia.
+Después instalar 0.2.8 mediante el instalador publicado, crear un perfil y asignar **CallFlow Hooks → nombre** a la opción del IVR. Guardar y Aplicar cambios. Verificar las ayudas, el renombrado, la lista de grabaciones, popover de crear cola, atención y contingencia.
 
 ## Comprobar administración de perfiles
 
