@@ -55,7 +55,7 @@ function callflowhooks_post_destination($name, $post, $manual) {
             }
         }
     }
-    $error = 'Seleccionar un destino de PBX. Para crearlo, usar Agregar nuevo en el selector.';
+    $error = callflowhooks_text('Select a PBX destination. To create one, use Add New in the selector.');
     throw new callflowhooks_backend_error($error, array($name=>$error));
 }
 
@@ -71,7 +71,7 @@ function callflowhooks_post_recording($post, $manual) {
             if (is_string($file) && $file !== '' && strpos($file, '&') === false) return $file;
         }
     }
-    $error = 'Seleccionar una grabación simple existente o Sin audio.';
+    $error = callflowhooks_text('Select an existing single recording or No Audio.');
     throw new callflowhooks_backend_error($error, array('input_prompt'=>$error));
 }
 
@@ -86,7 +86,7 @@ function callflowhooks_resolve_selectors(&$profile, $post) {
         }
     }
     // Resolve every valid selection before failing, so an unrelated error cannot erase it from the draft.
-    if ($errors) throw new callflowhooks_backend_error('Corregir las selecciones indicadas.', $errors);
+    if ($errors) throw new callflowhooks_backend_error(callflowhooks_text('Correct the highlighted selections.'), $errors);
 }
 
 function callflowhooks_popover_metadata($label, $items) {
@@ -113,10 +113,10 @@ function callflowhooks_destination_selects($catalog, $index, $value, $required) 
     }
     // Reuse the native catalog and JS contract, escaping text that old drawselects() inserts raw.
     $escapedIndex = callflowhooks_escape($index);
-    echo '<select name="goto'.$escapedIndex.'" id="goto'.$escapedIndex.'" class="destdropdown" data-id="'.$escapedIndex.'" data-last="'.callflowhooks_escape($selectedCategory).'"'.($required ? ' required' : '').' aria-label="Categoría de destino"><option value="">Seleccionar categoría</option>';
+    echo '<select name="goto'.$escapedIndex.'" id="goto'.$escapedIndex.'" class="destdropdown" data-id="'.$escapedIndex.'" data-last="'.callflowhooks_escape($selectedCategory).'"'.($required ? ' required' : '').(' aria-label="'.callflowhooks_escape(callflowhooks_text('Destination Category')).'"><option value="">'.callflowhooks_escape(callflowhooks_text('Select a category')).'</option>');
     foreach ($catalog as $label=>$items) {
         $key = callflowhooks_category_key($label, $catalog);
-        echo '<option value="'.callflowhooks_escape($key).'"'.($key === $selectedCategory ? ' selected' : '').'>'.callflowhooks_escape($label === 'cfh_existing' ? 'Destino actual' : $label).'</option>';
+        echo '<option value="'.callflowhooks_escape($key).'"'.($key === $selectedCategory ? ' selected' : '').'>'.callflowhooks_escape($label === 'cfh_existing' ? callflowhooks_text('Current Destination') : $label).'</option>';
     }
     echo '</select> ';
     foreach ($catalog as $label=>$items) {
@@ -125,7 +125,7 @@ function callflowhooks_destination_selects($catalog, $index, $value, $required) 
         $metadata = callflowhooks_popover_metadata($label, $items);
         $classes = $metadata ? ' '.callflowhooks_escape($metadata['module']).($metadata['id'] !== $metadata['module'] ? ' '.callflowhooks_escape($metadata['id']) : '') : '';
         $attributes = $metadata ? ' data-url="'.callflowhooks_escape($metadata['url']).'" data-class="'.callflowhooks_escape($metadata['id']).'" data-mod="'.callflowhooks_escape($metadata['module']).'"' : '';
-        echo '<select'.$attributes.' name="'.$id.'" id="'.$id.'" class="destdropdown2'.$classes.'" data-id="'.$escapedIndex.'" data-last="'.callflowhooks_escape($value).'"'.($key === $selectedCategory ? '' : ' style="display:none"').' aria-label="'.callflowhooks_escape('Destino: '.$label).'">';
+        echo '<select'.$attributes.' name="'.$id.'" id="'.$id.'" class="destdropdown2'.$classes.'" data-id="'.$escapedIndex.'" data-last="'.callflowhooks_escape($value).'"'.($key === $selectedCategory ? '' : ' style="display:none"').' aria-label="'.callflowhooks_escape(sprintf(callflowhooks_text('Destination: %s'),$label)).'">';
         foreach ($items as $item) {
             if ($item['destination'] === 'popover' && !$metadata) continue;
             $description = html_entity_decode($item['description'], ENT_QUOTES, 'UTF-8');
@@ -140,13 +140,13 @@ function callflowhooks_destination_field($name, $field, $value, $error = '') {
     if ($catalog === null) {
         callflowhooks_field_open($field, 'callflowhooks-'.$name);
         echo '<input type="hidden" name="'.$name.'" value="'.callflowhooks_escape($value).'">';
-        echo '<p role="alert">Selector PBX no disponible. Revisar los módulos de Configuración PBX.</p>';
+        echo ('<p role="alert">'.callflowhooks_escape(callflowhooks_text('PBX selector unavailable. Check the PBX Configuration modules.')).'</p>');
         callflowhooks_field_close($field, $error);
         return;
     }
     $known = $value === '';
     foreach ($catalog as $items) foreach ($items as $item) if ($value === $item['destination']) $known = true;
-    if (!$known) $catalog['cfh_existing'] = array(array('destination'=>$value, 'description'=>'Valor actual de .conf: '.$value));
+    if (!$known) $catalog['cfh_existing'] = array(array('destination'=>$value, 'description'=>sprintf(callflowhooks_text('Current .conf value: %s'),$value)));
     callflowhooks_field_open($field, 'gotocallflow_'.$name);
     echo '<input type="hidden" name="'.$name.'" value="'.callflowhooks_escape($value).'"><input type="hidden" name="'.$name.'_mode" value="pbx">';
     callflowhooks_destination_selects($catalog, 'callflow_'.$name, $value, true);
@@ -158,12 +158,12 @@ function callflowhooks_recording_field($name, $field, $value, $error = '') {
     callflowhooks_field_open($field, 'callflowhooks-recording');
     echo '<input type="hidden" name="'.$name.'" value="'.callflowhooks_escape($value).'">';
     if ($items === null) {
-        echo '<p role="alert">System Recordings no disponible. El audio actual se conserva.</p>';
+        echo ('<p role="alert">'.callflowhooks_escape(callflowhooks_text('System Recordings unavailable. The current audio is preserved.')).'</p>');
     } else {
         $selectedId = $value === '' ? '' : null;
         foreach ($items as $item) if ($value === $item['filename']) $selectedId = (string)$item['id'];
-        echo '<input type="hidden" name="input_prompt_mode" value="pbx"><select name="input_prompt_recording_id" id="callflowhooks-recording"><option value="">Sin audio</option>';
-        if ($selectedId === null) echo '<option value="cfh_existing" selected>'.callflowhooks_escape('Valor actual de .conf: '.$value).'</option>';
+        echo ('<input type="hidden" name="input_prompt_mode" value="pbx"><select name="input_prompt_recording_id" id="callflowhooks-recording"><option value="">'.callflowhooks_escape(callflowhooks_text('No Audio')).'</option>');
+        if ($selectedId === null) echo '<option value="cfh_existing" selected>'.callflowhooks_escape(sprintf(callflowhooks_text('Current .conf value: %s'),$value)).'</option>';
         foreach ($items as $item) {
             echo '<option value="'.callflowhooks_escape($item['id']).'"'.((string)$item['id'] === $selectedId ? ' selected' : '').'>'.callflowhooks_escape($item['displayname']).'</option>';
         }

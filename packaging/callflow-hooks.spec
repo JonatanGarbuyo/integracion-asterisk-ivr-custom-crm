@@ -31,6 +31,7 @@ mkdir -p %{buildroot}/usr/share/callflow-hooks
 mkdir -p %{buildroot}/usr/sbin
 install -m 755 packaging/callflow-hooksctl %{buildroot}/usr/sbin/callflow-hooksctl
 cp module/*.php module/module.xml %{buildroot}/var/www/html/admin/modules/callflowhooks/
+cp -a module/i18n %{buildroot}/var/www/html/admin/modules/callflowhooks/
 cp -a module/backend module/extensions %{buildroot}/usr/share/callflow-hooks/
 cp packaging/pbx-state.php packaging/lifecycle.py version.json %{buildroot}/usr/share/callflow-hooks/
 chmod 755 %{buildroot}/usr/share/callflow-hooks/backend/entry.py

@@ -170,23 +170,48 @@ class Configuration:
                 profile['settings'] = settings
             normalized = self.normalize(profile)
             profiles[normalized['identifier']] = normalized
-            parser = configparser.ConfigParser(interpolation=None)
-            for identifier, item in sorted(profiles.items()):
-                parser['profile:' + identifier] = {
-                    k: json.dumps(v, ensure_ascii=False) if k == 'settings' else str(v).lower() if type(v) is bool else str(v)
-                    for k, v in item.items() if k != 'identifier'}
-            output = io.StringIO()
-            parser.write(output)
-            if len(output.getvalue().encode('utf-8')) > 262144:
-                raise ConfigurationError('Configuración demasiado grande')
-            fd, temporary = tempfile.mkstemp(prefix='.profiles-', dir=str(self.path.parent))
-            try:
-                with os.fdopen(fd, 'w', encoding='utf-8') as stream:
-                    stream.write(output.getvalue())
-                    stream.flush()
-                    os.fsync(stream.fileno())
-                os.replace(temporary, str(self.path))
-            finally:
-                if os.path.exists(temporary):
-                    os.unlink(temporary)
+            self._write(profiles)
         return self.describe()
+
+    def delete(self, identifier, expected_version):
+        if not isinstance(identifier, str) or not IDENTIFIER.fullmatch(identifier):
+            raise ConfigurationError('Select a valid profile identifier.', 'identifier')
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with open(str(self.path) + '.lock', 'a') as lock:
+            os.chmod(lock.name, 0o600)
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            version, profiles = self.read()
+            if version != expected_version:
+                raise ConfigurationError('La configuración cambió en otra edición; revisar los valores antes de volver a guardar.', code='stale_configuration')
+            if identifier not in profiles:
+                raise ConfigurationError('The profile no longer exists. Reload the profile list.')
+            destination = 'callflow-profile-{},s,1'.format(identifier)
+            for other_identifier, profile in profiles.items():
+                if other_identifier != identifier and destination in (
+                        profile['next_destination'], profile['fallback_destination']):
+                    raise ConfigurationError('The profile is used by another profile.')
+            del profiles[identifier]
+            self._write(profiles)
+        return self.describe()
+
+    def _write(self, profiles):
+        """Atomic replacement shared by both configuration mutations under lock."""
+        parser = configparser.ConfigParser(interpolation=None)
+        for identifier, item in sorted(profiles.items()):
+            parser['profile:' + identifier] = {
+                k: json.dumps(v, ensure_ascii=False) if k == 'settings' else str(v).lower() if type(v) is bool else str(v)
+                for k, v in item.items() if k != 'identifier'}
+        output = io.StringIO()
+        parser.write(output)
+        if len(output.getvalue().encode('utf-8')) > 262144:
+            raise ConfigurationError('Configuración demasiado grande')
+        fd, temporary = tempfile.mkstemp(prefix='.profiles-', dir=str(self.path.parent))
+        try:
+            with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+                stream.write(output.getvalue())
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary, str(self.path))
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)

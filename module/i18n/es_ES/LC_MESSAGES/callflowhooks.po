@@ -1,0 +1,360 @@
+msgid ""
+msgstr "Project-Id-Version: callflowhooks\nContent-Type: text/plain; charset=UTF-8\nLanguage: es\n"
+
+msgid " (leave blank to preserve the credential)"
+msgstr " (vacío conserva la credencial)"
+
+msgid "Access denied"
+msgstr "Acceso denegado"
+
+msgid "Access denied. Open CallFlow Hooks through Issabel PBX Configuration."
+msgstr "Acceso denegado. Abrir CallFlow Hooks desde Configuración PBX de Issabel."
+
+msgid "Add a new profile"
+msgstr "Agregar un nuevo perfil"
+
+msgid "Brief"
+msgstr "Breve"
+
+msgid "Channel Input Variable"
+msgstr "Variable de entrada del canal"
+
+msgid "Channel Variable"
+msgstr "Variable de canal"
+
+msgid "Configuration changed in another edit. Review the values before saving again."
+msgstr "La configuración cambió en otra edición; revisar los valores antes de volver a guardar."
+
+msgid "Configuration changed; reload before deleting the profile."
+msgstr "La configuración cambió; recargar antes de eliminar el perfil."
+
+msgid "Configuration invalid or unavailable. Check fields, version and permissions."
+msgstr "Configuración inválida o no disponible; revisar campos, versión y permisos"
+
+msgid "Configuration invalid or unavailable. Check file structure and version."
+msgstr "Configuración inválida o no disponible; revisar estructura y versión del archivo"
+
+msgid "Configuration too large."
+msgstr "Configuración demasiado grande"
+
+msgid "Confirm deletion of this profile. This removes its configuration and credentials."
+msgstr "Confirmar eliminación de este perfil. Se borran su configuración y credenciales."
+
+msgid "Confirm profile deletion before continuing."
+msgstr "Confirmar la eliminación del perfil antes de continuar."
+
+msgid "Continue Destination"
+msgstr "Destino al continuar"
+
+msgid "Correct the highlighted selections."
+msgstr "Corregir las selecciones indicadas."
+
+msgid "Could not access the configuration file. Check installation and storage."
+msgstr "No se pudo acceder al archivo de configuración. Revisar instalación y almacenamiento."
+
+msgid "Could not complete the PBX operation. Check the server log."
+msgstr "No se pudo completar la operación PBX. Revisar el registro del servidor."
+
+msgid "Could not create the form token."
+msgstr "No se pudo crear token del formulario"
+
+msgid "Could not load the configuration."
+msgstr "No se pudo cargar la configuración."
+
+msgid "Could not read or save the configuration. Check web process permissions and SELinux."
+msgstr "No se pudo leer o guardar la configuración. Revisar permisos y SELinux del proceso web."
+
+msgid "Could not register the destination."
+msgstr "No se pudo registrar el destino"
+
+msgid "Could not start the local administrator."
+msgstr "No se pudo ejecutar el administrador local"
+
+msgid "Credentials cannot have nonempty defaults."
+msgstr "Las credenciales no admiten valores por defecto"
+
+msgid "Current .conf value: %s"
+msgstr "Valor actual de .conf: %s"
+
+msgid "Current Destination"
+msgstr "Destino actual"
+
+msgid "Custom Destinations is unavailable; the profile was not deleted."
+msgstr "Custom Destinations no está disponible; el perfil no fue eliminado."
+
+msgid "DEFAULT sections are not supported."
+msgstr "No se admite sección DEFAULT"
+
+msgid "Delete Profile"
+msgstr "Eliminar perfil"
+
+msgid "Destination Category"
+msgstr "Categoría de destino"
+
+msgid "Destination usage cannot be checked; profile deletion is unavailable."
+msgstr "No se pudo comprobar el uso del destino; no se puede eliminar el perfil."
+
+msgid "Destination usage could not be verified. Deletion is disabled."
+msgstr "No se pudo verificar el uso del destino. La eliminación está deshabilitada."
+
+msgid "Destination: %s"
+msgstr "Destino: %s"
+
+msgid "Destinations synchronized."
+msgstr "Destinos sincronizados. Aplicar configuración."
+
+msgid "Digit Entry Timeout (seconds)"
+msgstr "Tiempo para ingresar dígitos (segundos)"
+
+msgid "Digit Prompt Recording"
+msgstr "Audio para solicitar dígitos"
+
+msgid "Discard Draft"
+msgstr "Descartar borrador"
+
+msgid "Draft discarded. Saved configuration is preserved."
+msgstr "Borrador descartado. La configuración guardada se conserva."
+
+msgid "Draft recovered. Correct the fields and save again."
+msgstr "Borrador recuperado; corregir los campos y volver a guardar."
+
+msgid "Edit Profile: %s"
+msgstr "Editar perfil: %s"
+
+msgid "Editable name shown in profile lists and IVR destinations. Renaming preserves the technical identifier and existing references."
+msgstr "Nombre editable que aparece en la lista de perfiles y destinos del IVR. Cambiarlo conserva el identificador técnico y las referencias existentes."
+
+msgid "Enable Custom Destinations before CallFlow Hooks."
+msgstr "Activar Custom Destinations antes de CallFlow Hooks"
+
+msgid "Enabled"
+msgstr "Habilitado"
+
+msgid "Enabled must be true or false."
+msgstr "Habilitado debe ser true o false"
+
+msgid "Enter a valid channel variable name."
+msgstr "Ingresar un nombre de variable de canal válido."
+
+msgid "Enter a valid relative audio filename."
+msgstr "Ingresar un nombre de audio relativo válido."
+
+msgid "Enter an integer between %s and %s."
+msgstr "Ingresar un número entero entre %s y %s."
+
+msgid "Enter context,extension,priority; for example ext-local,201,1."
+msgstr "Ingresar contexto,extensión,prioridad; por ejemplo ext-local,201,1."
+
+msgid "Enter seconds between %s and %s, with up to three decimal places."
+msgstr "Ingresar segundos entre %s y %s, con hasta tres decimales."
+
+msgid "Enter text up to %s characters."
+msgstr "Ingresar texto de hasta %s caracteres."
+
+msgid "Example Context"
+msgstr "Contexto de ejemplo"
+
+msgid "Example Credential"
+msgstr "Credencial de ejemplo"
+
+msgid "Fail Over Destination"
+msgstr "Destino de contingencia"
+
+msgid "Greeting"
+msgstr "Saludo"
+
+msgid "Handler Extension"
+msgstr "Extensión del handler"
+
+msgid "Handler Input"
+msgstr "Entrada del handler"
+
+msgid "Handler Options: %s"
+msgstr "Opciones del handler: %s"
+
+msgid "Handler Time Limit (seconds)"
+msgstr "Límite del handler (segundos)"
+
+msgid "IVR handler profiles"
+msgstr "Perfiles de handlers desde IVR"
+
+msgid "Input Source"
+msgstr "Fuente de entrada"
+
+msgid "Invalid extension command."
+msgstr "Comando de extensión inválido"
+
+msgid "Invalid extension."
+msgstr "Extensión inválida"
+
+msgid "Invalid field name."
+msgstr "Nombre de campo inválido"
+
+msgid "Invalid profile identifier."
+msgstr "Identificador de perfil inválido."
+
+msgid "Invalid profile."
+msgstr "Perfil inválido"
+
+msgid "Manage profiles together with IVRs in PBX Configuration."
+msgstr "Administrar perfiles junto a los IVR en Configuración PBX."
+
+msgid "Maximum Digits"
+msgstr "Máximo de dígitos"
+
+msgid "New Profile"
+msgstr "Nuevo perfil"
+
+msgid "No Audio"
+msgstr "Sin audio"
+
+msgid "No valid response received from the local administrator."
+msgstr "No se recibió una respuesta válida del administrador local."
+
+msgid "None"
+msgstr "Ninguna"
+
+msgid "Normal"
+msgstr "Normal"
+
+msgid "PBX selector unavailable. Check the PBX Configuration modules."
+msgstr "Selector PBX no disponible. Revisar los módulos de Configuración PBX."
+
+msgid "Profile"
+msgstr "Perfil"
+
+msgid "Profile Identifier"
+msgstr "Identificador del perfil"
+
+msgid "Profile Name"
+msgstr "Nombre del perfil"
+
+msgid "Profile deleted."
+msgstr "Perfil eliminado."
+
+msgid "Profile not found."
+msgstr "Perfil no encontrado."
+
+msgid "Profile saved. In the IVR, select CallFlow Hooks → %s."
+msgstr "Perfil guardado. En el IVR, seleccionar CallFlow Hooks → %s."
+
+msgid "Profile updated."
+msgstr "Perfil actualizado."
+
+msgid "Re-enter any credentials you changed; they are not retained in the draft."
+msgstr "Volvé a ingresar las credenciales que habías cambiado; no se conservan en el borrador."
+
+msgid "References must be removed before deleting this profile."
+msgstr "Desvincular las referencias antes de eliminar este perfil."
+
+msgid "Request too large."
+msgstr "Solicitud demasiado grande"
+
+msgid "Required field."
+msgstr "Campo obligatorio."
+
+msgid "Retry"
+msgstr "Reintentar"
+
+msgid "Routing and Execution"
+msgstr "Enrutamiento y ejecución"
+
+msgid "Save Profile"
+msgstr "Guardar perfil"
+
+msgid "Select a PBX destination. To create one, use Add New in the selector."
+msgstr "Seleccionar un destino de PBX. Para crearlo, usar Agregar nuevo en el selector."
+
+msgid "Select a category"
+msgstr "Seleccionar categoría"
+
+msgid "Select a valid option."
+msgstr "Seleccionar una opción válida."
+
+msgid "Select a valid profile identifier."
+msgstr "Seleccionar un identificador de perfil válido."
+
+msgid "Select an existing single recording or No Audio."
+msgstr "Seleccionar una grabación simple existente o Sin audio."
+
+msgid "Select an installed handler extension."
+msgstr "Seleccionar una extensión instalada."
+
+msgid "Select enabled or disabled."
+msgstr "Seleccionar habilitado o deshabilitado."
+
+msgid "Send the call here if the profile is disabled, the handler fails, times out or returns an invalid response. This destination is set before AGI starts. For example, choose an existing staffed queue for contingency assistance."
+msgstr "Envía la llamada a este destino si el perfil está deshabilitado, el handler falla, agota su tiempo o devuelve una respuesta inválida. Se establece antes de iniciar el AGI. Por ejemplo, seleccionar una cola existente con operadores para atender la contingencia."
+
+msgid "Send the call here when the handler succeeds and returns continue. A handler returning route may choose an approved profile destination."
+msgstr "Envía la llamada a este destino cuando el handler termina correctamente y devuelve continue. Un handler que devuelve route puede elegir uno de los destinos aprobados del perfil."
+
+msgid "Single System Recording played when requesting DTMF input. No Audio skips the prompt. Manage recordings in System Recordings."
+msgstr "Grabación simple de System Recordings que se reproduce al solicitar entrada DTMF. Sin audio omite el mensaje. Los audios se administran en System Recordings."
+
+msgid "Stable technical key used in the dialplan and IVR references. Set at creation. To rename the profile, edit Profile Name. Use lowercase letters, digits, hyphen or underscore, starting with a letter."
+msgstr "Clave técnica estable usada en el dialplan y las referencias del IVR. Se fija al crear. Para renombrar el perfil, editar Nombre del perfil. Usar letras minúsculas, dígitos, guion o guion bajo; comenzar con una letra."
+
+msgid "Start with a lowercase letter; use lowercase letters, digits, hyphen or underscore, up to 40 characters."
+msgstr "Usar una letra minúscula inicial, letras minúsculas, dígitos, guion o guion bajo; máximo 40 caracteres."
+
+msgid "Style"
+msgstr "Estilo"
+
+msgid "Synchronize destinations from .conf"
+msgstr "Sincronizar destinos de .conf"
+
+msgid "System Recordings unavailable. The current audio is preserved."
+msgstr "System Recordings no disponible. El audio actual se conserva."
+
+msgid "The destination is owned by another configuration."
+msgstr "Destino ocupado por otra configuración"
+
+msgid "The executable must use an absolute path."
+msgstr "El ejecutable debe tener ruta absoluta"
+
+msgid "The form has expired. Reload the page."
+msgstr "Formulario vencido; recargar"
+
+msgid "The format does not match the field schema."
+msgstr "El formato no cumple el esquema del campo."
+
+msgid "The local administrator exceeded its limit."
+msgstr "Administrador local fuera de límite"
+
+msgid "The profile deletion result could not be verified."
+msgstr "No se pudo verificar el resultado de la eliminación del perfil."
+
+msgid "The profile destination could not be removed; the profile was not deleted."
+msgstr "No se pudo retirar el destino del perfil; el perfil no fue eliminado."
+
+msgid "The profile destination is owned by another configuration."
+msgstr "El destino del perfil pertenece a otra configuración."
+
+msgid "The profile is used by another profile."
+msgstr "El perfil está usado por otro perfil."
+
+msgid "The profile no longer exists. Reload the profile list."
+msgstr "El perfil ya no existe. Recargar la lista de perfiles."
+
+msgid "The timeout is independent of digit entry. Fractions of a second are allowed."
+msgstr "Este límite es independiente del ingreso de dígitos. Se admiten fracciones de segundo."
+
+msgid "This profile is still used by other PBX objects."
+msgstr "Este perfil todavía está usado por otros objetos PBX."
+
+msgid "Time to enter DTMF digits. Fractions of a second are allowed."
+msgstr "Tiempo para ingresar dígitos DTMF. Se admiten fracciones de segundo."
+
+msgid "Unknown fields."
+msgstr "Campos desconocidos"
+
+msgid "Unknown section."
+msgstr "Sección desconocida"
+
+msgid "Unsupported field type."
+msgstr "Tipo de campo no soportado"
+
+msgid "Used as Destination by %s Object(s)"
+msgstr "Usado como destino por %s objeto(s)"
+

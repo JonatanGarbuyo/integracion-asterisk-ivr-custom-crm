@@ -88,3 +88,9 @@ Ejecutar como root:
 Esto elimina todos los perfiles y credenciales del addon. Si rpm falla, el bloque se detiene y conserva la configuración; corregir la causa, sin usar --noscripts ni --nodeps. Los archivos de código administrados por el RPM se retiran automáticamente. No borrar archivos de dialplan generado ni directorios de otros módulos. Las copias de respaldo externas no se importan automáticamente.
 
 Después instalar 0.2.7 mediante el instalador publicado, crear un perfil y asignar **CallFlow Hooks → nombre** a la opción del IVR. Guardar y Aplicar cambios. Verificar las ayudas, el renombrado, la lista de grabaciones, popover de crear cola, atención y contingencia.
+
+## Comprobar administración de perfiles
+
+En la VM de laboratorio, abrir CallFlow Hooks en PBX Configuration y cambiar el idioma del shell entre inglés y español. Comprobar Continue Destination / Destino al continuar, Fail Over Destination / Destino de contingencia, botones y errores en ambos idiomas, conservando los nombres configurados. Guardar un perfil con límites 0.05 y 1.5 segundos y confirmar en profiles.conf los enteros 50 y 1500. Una entrada inválida debe conservar el borrador al recargar y al cambiar el idioma.
+
+Vincular un perfil de prueba a una opción del IVR: su edición debe mostrar el uso y bloquear eliminar, incluso enviando POST después de que apareció una referencia nueva. Desvincular, aplicar cambios y confirmar explícitamente la eliminación. Aplicar otra vez: el destino y contexto eliminados deben desaparecer, permaneciendo el resto de perfiles y sus credenciales. No ejecutar sobre un perfil usado por llamadas reales. Esta comprobación no valida el hook de cola ni la integración CRM.

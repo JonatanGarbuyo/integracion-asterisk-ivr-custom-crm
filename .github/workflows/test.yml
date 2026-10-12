@@ -29,14 +29,21 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: openssl
+          extensions: openssl, gettext
           coverage: none
+      - name: Install catalog test locales
+        run: |
+          sudo locale-gen en_US.UTF-8 es_ES.UTF-8
       - name: PHP syntax and native form boundary
+        env:
+          CFH_REQUIRE_GETTEXT: '1'
         run: |
           php --version
           find module native packaging -name '*.php' -exec php -l {} \;
           python -m unittest discover -s tests -p '*web.py' -v
           python -m unittest discover -s tests -p test_pbx_state.py -v
+          python -m unittest discover -s tests -p test_profile_deletion.py -v
+          python -m unittest discover -s tests -p 'test_admin*.py' -v
   rpm:
     runs-on: ubuntu-22.04
     steps:

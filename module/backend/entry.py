@@ -45,6 +45,8 @@ def main():
             response = configuration.describe()
         elif request['action'] == 'save':
             response = configuration.save(request['profile'], request['expected_version'])
+        elif request['action'] == 'delete':
+            response = configuration.delete(request['identifier'], request['expected_version'])
         else:
             raise ValueError('Acción desconocida')
     except ConfigurationError as error:

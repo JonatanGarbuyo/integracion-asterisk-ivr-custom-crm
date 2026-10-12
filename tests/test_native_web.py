@@ -76,10 +76,10 @@ class IssabelForm(AdminBoundary, unittest.TestCase):
     def test_discard_draft_does_not_change_configuration(self):
         version = self.request('describe')['configuration_version']
         post = dict(self.profile(), csrf_token='test-token', configuration_version=version)
-        post['execution_budget_ms'] = 'bad'
+        post['execution_budget_seconds'] = 'bad'
         result = self.web(action='save', post=post)
-        self.assertIn('número entero', result['html'])
-        self.assertIn('name="execution_budget_ms" value="bad"', result['html'])
+        self.assertIn('Ingresar segundos', result['html'])
+        self.assertIn('name="execution_budget_seconds" id="callflowhooks-execution_budget_ms" value="bad"', result['html'])
         result = self.web(action='save', post={'discard_draft':'1','csrf_token':'test-token'})
         self.assertNotIn('value="bad"', result['html'])
         self.assertNotIn('Descartar borrador', self.web(action='view')['html'])

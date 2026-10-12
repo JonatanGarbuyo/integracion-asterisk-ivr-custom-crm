@@ -37,6 +37,11 @@ class NativePackage(unittest.TestCase):
             listing = subprocess.check_output(['rpm','-qpl',str(package)],universal_newlines=True)
             for path in ['/var/www/html/admin/modules/callflowhooks/functions.inc.php',
                          '/var/www/html/admin/modules/callflowhooks/pbx-selectors.php',
+                         '/var/www/html/admin/modules/callflowhooks/i18n.php',
+                         '/var/www/html/admin/modules/callflowhooks/time-fields.php',
+                         '/var/www/html/admin/modules/callflowhooks/profile-deletion.php',
+                         '/var/www/html/admin/modules/callflowhooks/i18n/es_ES/LC_MESSAGES/callflowhooks.mo',
+                         '/var/www/html/admin/modules/callflowhooks/i18n/es/LC_MESSAGES/callflowhooks.mo',
                          '/usr/share/callflow-hooks/backend/entry.py',
                          '/usr/share/callflow-hooks/version.json']:
                 self.assertIn(path,listing)

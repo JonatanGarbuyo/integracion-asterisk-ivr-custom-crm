@@ -1,11 +1,15 @@
 <?php
 if (!defined('ISSABELPBX_IS_AUTH')) { die('No direct script access allowed'); }
 
+require_once dirname(__FILE__).'/i18n.php';
+require_once dirname(__FILE__).'/time-fields.php';
+
 class callflowhooks_backend_error extends Exception {
     public $fields;
     function __construct($message, $fields = array()) {
-        parent::__construct($message);
-        $this->fields = $fields;
+        parent::__construct(callflowhooks_message_id($message));
+        $this->fields = array();
+        foreach ($fields as $name=>$value) $this->fields[$name] = callflowhooks_message_id($value);
     }
 }
 
@@ -107,7 +111,7 @@ function callflowhooks_check_destinations($destinations = true) {
     foreach ($configuration['profiles'] as $profile) {
         foreach (array('next_destination', 'fallback_destination') as $field) {
             if ($destinations !== true && !in_array($profile[$field], $destinations, true)) continue;
-            $usage[] = array('dest'=>$profile[$field], 'description'=>'CallFlow Hooks: '.callflowhooks_escape($profile['display_name']).' / '.callflowhooks_escape($configuration['core_fields'][$field]['label']),
+            $usage[] = array('dest'=>$profile[$field], 'description'=>'CallFlow Hooks: '.callflowhooks_escape($profile['display_name']).' / '.callflowhooks_escape(callflowhooks_text($configuration['core_fields'][$field]['label'])),
                             'edit_url'=>'config.php?display=callflowhooks&profile='.rawurlencode($profile['identifier']));
         }
     }
@@ -188,9 +192,10 @@ function callflowhooks_field($name, $field, $value, $error = '') {
     $name = callflowhooks_escape($name);
     callflowhooks_field_open($field, $id);
     if ($field['type'] === 'choice') {
+        $optionLabels = array('none'=>'None','channel'=>'Channel Variable','normal'=>'Normal','breve'=>'Brief');
         echo '<select name="'.$name.'" id="'.$id.'"'.($error ? ' aria-invalid="true"' : '').'>';
         foreach ($field['options'] as $option) {
-            echo '<option value="'.callflowhooks_escape($option).'"'.($option === $value ? ' selected' : '').'>'.callflowhooks_escape($option).'</option>';
+            echo '<option value="'.callflowhooks_escape($option).'"'.($option === $value ? ' selected' : '').'>'.callflowhooks_escape(callflowhooks_text(isset($optionLabels[$option]) ? $optionLabels[$option] : $option)).'</option>';
         }
         echo '</select>';
     } elseif ($field['type'] === 'boolean') {
@@ -206,25 +211,25 @@ function callflowhooks_field($name, $field, $value, $error = '') {
             if (isset($field[$key])) echo ' '.$attribute.'="'.(int)$field[$key].'"';
         }
         echo '>';
-        if ($type === 'password') echo ' (vacío conserva la credencial)';
+        if ($type === 'password') echo callflowhooks_escape(callflowhooks_text(' (leave blank to preserve the credential)'));
     }
 
     callflowhooks_field_close($field, $error);
 }
 
 function callflowhooks_field_open($field, $id) {
-    echo '<tr><td><label for="'.callflowhooks_escape($id).'">'.callflowhooks_escape($field['label']).'</label>';
-    if (isset($field['help'])) echo '<span class="help">?<span>'.callflowhooks_escape($field['help']).'</span></span>';
+    echo '<tr><td><label for="'.callflowhooks_escape($id).'">'.callflowhooks_escape(callflowhooks_text($field['label'])).'</label>';
+    if (isset($field['help'])) echo '<span class="help">?<span>'.callflowhooks_escape(callflowhooks_text($field['help'])).'</span></span>';
     echo '</td><td>';
 }
 
 function callflowhooks_field_close($field, $error) {
-    if ($error) echo '<p role="alert">'.callflowhooks_escape($field['label']).': '.callflowhooks_escape($error).'</p>';
+    if ($error) echo '<p role="alert">'.callflowhooks_escape(callflowhooks_text($field['label'])).': '.callflowhooks_escape(callflowhooks_text($error)).'</p>';
     echo '</td></tr>';
 }
 
 function callflowhooks_section($title) {
-    echo '<tr><td colspan="2"><h5>'.callflowhooks_escape($title).'</h5><hr></td></tr>';
+    echo '<tr><td colspan="2"><h5>'.callflowhooks_escape(callflowhooks_text($title)).'</h5><hr></td></tr>';
 }
 
 function callflowhooks_form_hidden($configuration, $embedded) {
@@ -253,3 +258,5 @@ function callflowhooks_public_draft($profile, $core, $extension) {
 }
 
 require_once dirname(__FILE__).'/pbx-selectors.php';
+
+require_once dirname(__FILE__).'/profile-deletion.php';

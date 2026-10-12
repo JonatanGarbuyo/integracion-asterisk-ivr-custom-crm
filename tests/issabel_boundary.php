@@ -1,6 +1,8 @@
 <?php
 /* Issabel/Custom Destinations boundary double, not a substitute for PBX validation. */
 $request = json_decode(file_get_contents('php://stdin'), true);
+$_COOKIE['lang'] = isset($request['language']) ? $request['language'] : 'es_ES';
+require dirname(__FILE__).'/pbx_i18n_boundary.php';
 if (empty($request['bootstrap'])) define('ISSABELPBX_IS_AUTH', true);
 define('CFH_CONFIGURATION_FILE', getenv('CFH_TEST_CONFIG'));
 define('CFH_PYTHON_BINARY', getenv('CFH_TEST_PYTHON'));
@@ -23,6 +25,15 @@ if (isset($request['get'])) $_GET = $request['get'];
 $registry = CFH_CONFIGURATION_FILE.'.registry';
 $destinations = file_exists($registry) ? json_decode(file_get_contents($registry), true) : array();
 $reloads = 0;
+$active_modules = array('ivr'=>array(), 'callflowhooks'=>array(), 'customappsreg'=>array());
+if (empty($request['missing_usage_api'])) {
+    function framework_check_destination_usage($destinations) {
+        if (!empty($GLOBALS['request']['usage_failure'])) throw new Exception('private failure');
+        if (!empty($GLOBALS['request']['usage_invalid'])) return false;
+        return isset($GLOBALS['request']['references']) ? $GLOBALS['request']['references'] : array();
+    }
+}
+
 if (!empty($request['pbx_widgets'])) require dirname(__FILE__).'/pbx_selectors_boundary.php';
 if (empty($request['bootstrap'])) require dirname(__FILE__).'/pbx_api_boundary.php';
 else define('CFH_PBX_CONFIGURATION_FILE', dirname(__FILE__).'/pbx_bootstrap_boundary.php');
