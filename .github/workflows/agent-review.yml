@@ -1,0 +1,69 @@
+name: CallFlow operator bootstrap review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths: ['tools/agent_*.py', 'tests/automation/**', '.github/workflows/agent*.yml', 'docs/agents/**']
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: write
+
+jobs:
+  review:
+    if: >-
+      github.repository == 'JonatanGarbuyo/integracion-asterisk-ivr-custom-crm' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login == 'JonatanGarbuyo' &&
+      github.event.pull_request.head.ref == 'bootstrap/agent-evidence-41-pr' &&
+      github.event.pull_request.draft
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        axis: [spec, standards]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          path: candidate
+          persist-credentials: false
+      - name: Load approved role profiles from pinned planning snapshot
+        uses: actions/checkout@v4
+        with:
+          ref: cd0db4c4038c942e3f4653e7166936412e22d593
+          path: profiles
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned OpenCode
+        run: npm install -g opencode-ai@1.18.30
+      - name: Review and publish only this exact HEAD
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
+          PYTHONDONTWRITEBYTECODE: '1'
+          CFH_PR: ${{ github.event.pull_request.number }}
+          CFH_AXIS: ${{ matrix.axis }}
+          CFH_HEAD: ${{ github.event.pull_request.head.sha }}
+          CFH_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python3 candidate/tools/agent_review.py --pr "$CFH_PR" --axis "$CFH_AXIS" \
+            --head "$CFH_HEAD" --base "$CFH_BASE" --workspace "$GITHUB_WORKSPACE/candidate" \
+            --profiles "$GITHUB_WORKSPACE/profiles/docs/bootstrap/payload/opencode/agents" \
+            --evidence "$RUNNER_TEMP/bootstrap-review-$CFH_AXIS"
+      - name: Preserve final report even when review fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-review-${{ matrix.axis }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/bootstrap-review-${{ matrix.axis }}/
+          if-no-files-found: ignore
