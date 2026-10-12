@@ -32,3 +32,11 @@ class AdminBoundary:
                     next_destination='ext-local,201,1', fallback_destination='ext-local,202,1',
                     execution_budget_ms=800, input_source='none',
                     settings={'greeting': 'Buen día', 'api_token': 'private-token'})
+
+
+class UIProfileBoundary(AdminBoundary):
+    """Web input follows the current whole-second form; JSON fixtures stay unchanged."""
+    def profile(self, identifier='welcome'):
+        result = super().profile(identifier)
+        result.update(display_name=identifier, execution_budget_ms=1000)
+        return result

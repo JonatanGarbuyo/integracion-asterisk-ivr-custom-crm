@@ -35,11 +35,11 @@ Para preparar el RPM sin instalarlo:
 
 ### Descarga directa sin Git
 
-La prerelease de laboratorio `v0.2.8` distribuye el RPM y `manifest.json`. Para descargar e instalar sin Git ni herramientas de compilación:
+La prerelease de laboratorio `v0.2.9` distribuye el RPM y `manifest.json`. Para descargar e instalar sin Git ni herramientas de compilación:
 
 ```bash
-curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.8/tools/install.py -o /tmp/callflow-install.py
-sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.8
+curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/v0.2.9/tools/install.py -o /tmp/callflow-install.py
+sudo /usr/bin/python3 /tmp/callflow-install.py --release v0.2.9
 ```
 
 Esta modalidad requiere `rpm2cpio` y `cpio`, pero no `git` ni `rpmbuild` en la PBX. El workflow publica una prerelease de laboratorio después de las pruebas y la construcción del RPM, desde un tag coincidente o una rama `release/callflow-hooks-vX.Y.Z`. No certifica la instalación efectiva en la VM. El checksum detecta corrupción y se contrasta además la identidad del RPM; no equivale por sí solo a una firma de un editor independiente.
@@ -71,7 +71,7 @@ El `.tgz` de `tools/build.py` sigue siendo únicamente un artefacto del puente I
 
 El usuario confirmó instalación de 0.2.4 y llamada mediante opción 1 explícita del IVR → perfil `example` → AGI → `ext-local,101,1`, con SIP/101 atendido. El usuario confirmó instalación de 0.2.5. Los nuevos selectores de 0.2.7 y la reproducción de audio deben comprobarse en la VM. Audio, contingencia y ACL completos siguen pendientes; un CI verde no confirma menú de la distribución, audio, SELinux, cola ni proveedor real. Guardar actualiza el .conf consumido por nuevas ejecuciones AGI; Aplicar cambios regenera el dialplan, sin staging ni recarga automática.
 
-La actualización desde 0.2.7 usa el mismo instalador con `--release v0.2.8` y conserva perfiles, credenciales y referencias IVR. No requiere desinstalar ni borrar configuración. Después recargar la página y aplicar los cambios pendientes en PBX Configuration.
+La actualización desde 0.2.8 usa el mismo instalador con `--release v0.2.9` y conserva perfiles, credenciales y referencias IVR. No requiere desinstalar ni borrar configuración. Después recargar la página y aplicar los cambios pendientes en PBX Configuration.
 
 ## Empezar limpio (opcional)
 
@@ -89,10 +89,12 @@ Ejecutar como root:
 
 Esto elimina todos los perfiles y credenciales del addon. Si rpm falla, el bloque se detiene y conserva la configuración; corregir la causa, sin usar --noscripts ni --nodeps. Los archivos de código administrados por el RPM se retiran automáticamente. No borrar archivos de dialplan generado ni directorios de otros módulos. Las copias de respaldo externas no se importan automáticamente.
 
-Después instalar 0.2.8 mediante el instalador publicado, crear un perfil y asignar **CallFlow Hooks → nombre** a la opción del IVR. Guardar y Aplicar cambios. Verificar las ayudas, el renombrado, la lista de grabaciones, popover de crear cola, atención y contingencia.
+Después instalar 0.2.9 mediante el instalador publicado, crear un perfil y asignar **CallFlow Hooks → nombre** a la opción del IVR. Guardar y Aplicar cambios. Verificar las ayudas, el renombrado, la lista de grabaciones, popover de crear cola, atención y contingencia.
 
 ## Comprobar administración de perfiles
 
-En la VM de laboratorio, abrir CallFlow Hooks en PBX Configuration y cambiar el idioma del shell entre inglés y español. Comprobar Continue Destination / Destino al continuar, Fail Over Destination / Destino de contingencia, botones y errores en ambos idiomas, conservando los nombres configurados. Guardar un perfil con límites 0.05 y 1.5 segundos y confirmar en profiles.conf los enteros 50 y 1500. Una entrada inválida debe conservar el borrador al recargar y al cambiar el idioma.
+En la VM de laboratorio, abrir CallFlow Hooks en PBX Configuration y cambiar el idioma del shell entre inglés y español. Comprobar Continue Destination / Destino al continuar, Fail Over Destination / Destino de contingencia, botones y errores en ambos idiomas, conservando los nombres configurados. Guardar un perfil con límites 2 y 3 segundos y confirmar en profiles.conf los enteros 2000 y 3000. Un perfil previo con 50 y 1500 ms debe mostrar exactamente 0.05 y 1.5 al abrirlo; guardar sin elegir enteros debe rechazarse sin cambiar el archivo. Una entrada inválida debe conservar el borrador al recargar y al cambiar el idioma.
 
 Vincular un perfil de prueba a una opción del IVR: su edición debe mostrar el uso y bloquear eliminar, incluso enviando POST después de que apareció una referencia nueva. Desvincular, aplicar cambios y confirmar explícitamente la eliminación. Aplicar otra vez: el destino y contexto eliminados deben desaparecer, permaneciendo el resto de perfiles y sus credenciales. No ejecutar sobre un perfil usado por llamadas reales. Esta comprobación no valida el hook de cola ni la integración CRM.
+
+En la cabecera de edición, verificar título → usos con ayuda → icono/botón de eliminación y confirmación → separador → campos. Al crear sólo se ingresa el nombre; renombrarlo debe conservar su destino y contexto. El Mensaje del handler de ejemplo es texto de contexto y no se escucha: la grabación de solicitud DTMF se configura en Audio para solicitar dígitos.

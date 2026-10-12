@@ -58,6 +58,9 @@ fi
 %attr(700,root,root) %dir /var/lib/callflow-hooks
 
 %changelog
+* Mon Oct 12 2026 CallFlow Hooks contributors - 0.2.9-1
+- Place deletion after title, hide stable IDs, accept whole seconds and clarify example text.
+
 * Mon Oct 12 2026 CallFlow Hooks contributors - 0.2.8-1
 - Localize PBX forms in English/Spanish, edit time limits in seconds and safely delete unused profiles.
 

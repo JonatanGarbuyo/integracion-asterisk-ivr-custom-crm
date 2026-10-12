@@ -74,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $submitted['identifier'] = isset($_POST['identifier']) ? $_POST['identifier'] : '';
             $submitted['extension'] = $extension['identifier'];
             $submitted['settings'] = callflowhooks_post_fields($extension['fields'], isset($_POST['settings']) && is_array($_POST['settings']) ? $_POST['settings'] : array());
+            if (!isset($_POST['display_name']) || !is_string($_POST['display_name']) || trim($_POST['display_name']) === '') throw new callflowhooks_backend_error('Required field.', array('display_name'=>'Required field.'));
             callflowhooks_resolve_selectors($submitted, $_POST);
             callflowhooks_post_seconds($submitted, $_POST, $configuration['core_fields']);
             $updating = false;
@@ -138,10 +139,47 @@ if (!$extension) {
     echo ('<p role="alert">'.callflowhooks_escape(callflowhooks_text('Select an installed handler extension.')).'</p><a href="').$newUrl.('">'.callflowhooks_escape(callflowhooks_text('New Profile')).'</a>');
     return;
 }
+try { $profileIdentifier = $selected ? $selected['identifier'] : callflowhooks_new_identifier(); }
+catch (Exception $error) { echo '<p role="alert">'.callflowhooks_escape(callflowhooks_text('Could not create the profile. Reload the page.')).'</p>'; return; }
+$usage = null;
+if ($editing) {
+    try { $usage = callflowhooks_profile_usage($selected['identifier']); }
+    catch (Exception $error) { $usage = null; }
+}
+echo '<table><tr><td colspan="2"><h2 id="title">'.($editing ? callflowhooks_escape(sprintf(callflowhooks_text('Edit Profile: %s'), (isset($selected['display_name']) && $selected['display_name'] !== '' ? $selected['display_name'] : $selected['identifier']))) : callflowhooks_escape(callflowhooks_text('New Profile'))).'</h2></td></tr>';
+if ($editing) {
+    echo '<tr><td colspan="2">';
+    if ($usage === null) echo '<p role="alert">'.callflowhooks_escape(callflowhooks_text('Destination usage could not be verified. Deletion is disabled.')).'</p>';
+    else {
+        echo callflowhooks_escape(sprintf(callflowhooks_text('Used as Destination by %s Object(s)'),count($usage)));
+        if ($usage) {
+            echo '<span class="help">?<span>'.callflowhooks_escape(callflowhooks_text('References must be removed before deleting this profile.')).'<ul>';
+            foreach ($usage as $reference) {
+                $description = html_entity_decode($reference['description'], ENT_QUOTES, 'UTF-8');
+                $url = isset($reference['edit_url']) ? $reference['edit_url'] : '';
+                echo '<li>';
+                if (is_string($url) && preg_match('~^(?:config\.php|index\.php)\?[^\x00-\x20\x7f]*$~D', $url) && strpos($url, '\\') === false) echo '<a href="'.callflowhooks_escape($url).'">'.callflowhooks_escape($description).'</a>';
+                else echo callflowhooks_escape($description);
+                echo '</li>';
+            }
+            echo '</ul></span></span>';
+        }
+    }
+    echo '</td></tr><tr><td colspan="2">';
+    $deleteLabel = callflowhooks_escape(callflowhooks_text('Delete Profile'));
+    $deleteIcon = '<img width="16" height="16" src="/admin/images/core_delete.png" alt="'.$deleteLabel.'"> ';
+    echo '<form id="callflowhooks-delete-confirmation" method="post" action="'.callflowhooks_escape($callflowhooks_form_url).'">';
+    callflowhooks_form_hidden($configuration, $callflowhooks_embedded);
+    echo '<input type="hidden" name="identifier" value="'.callflowhooks_escape($selected['identifier']).'">';
+    echo '<p><label><input type="checkbox" name="confirm_delete" value="1" required'.($usage === null || $usage ? ' disabled' : '').'> '.callflowhooks_escape(callflowhooks_text('Confirm deletion of this profile. This removes its configuration and credentials.')).'</label></p>';
+    echo '<button name="delete_profile" value="1" type="submit"'.($usage === null || $usage ? ' disabled' : '').'>'.$deleteIcon.$deleteLabel.'</button></form>';
+    echo '</td></tr>';
+}
+echo '<tr><td colspan="2"><hr></td></tr></table>';
 echo '<form class="popover-form" method="post" action="'.callflowhooks_escape($callflowhooks_form_url).'">';
 callflowhooks_form_hidden($configuration, $callflowhooks_embedded);
-echo '<input type="hidden" name="extension" value="'.callflowhooks_escape($extensionId).'">';
-echo '<table><tr><td colspan="2"><h2 id="title">'.($editing ? callflowhooks_escape(sprintf(callflowhooks_text('Edit Profile: %s'), (isset($selected['display_name']) && $selected['display_name'] !== '' ? $selected['display_name'] : $selected['identifier']))) : callflowhooks_escape(callflowhooks_text('New Profile'))).'</h2></td></tr>';
+echo '<input type="hidden" name="extension" value="'.callflowhooks_escape($extensionId).'"><input type="hidden" name="identifier" value="'.callflowhooks_escape($profileIdentifier).'">';
+echo '<table>';
 callflowhooks_section(callflowhooks_text('Profile'));
 echo ('<tr><td><label for="callflowhooks-extension">'.callflowhooks_escape(callflowhooks_text('Handler Extension')).'</label></td><td>');
 if ($editing || $draft) {
@@ -154,10 +192,10 @@ if ($editing || $draft) {
     }
     echo '</select>';
 }
-echo ('</td></tr><tr><td><label for="callflowhooks-identifier">'.callflowhooks_escape(callflowhooks_text('Profile Identifier')).'</label><span class="help">?<span>'.callflowhooks_escape(callflowhooks_text('Stable technical key used in the dialplan and IVR references. Set at creation. To rename the profile, edit Profile Name. Use lowercase letters, digits, hyphen or underscore, starting with a letter.')).'</span></span></td><td><input name="identifier" value="').callflowhooks_escape($selected ? $selected['identifier'] : '').'" id="callflowhooks-identifier" maxlength="40" required'.($editing ? ' readonly' : '').'>';
-if (isset($fields['identifier'])) echo '<p role="alert">'.callflowhooks_escape(callflowhooks_text('Profile Identifier')).': '.callflowhooks_escape(callflowhooks_text($fields['identifier'])).'</p>';
 echo '</td></tr>';
+if (isset($fields['identifier'])) echo '<tr><td colspan="2"><p role="alert">'.callflowhooks_escape(callflowhooks_text($fields['identifier'])).'</p></td></tr>';
 foreach ($configuration['core_fields'] as $name=>$field) {
+    if ($name === 'display_name') { $field['label'] = 'Name'; $field['required'] = true; $field['help'] = 'Name shown in profile lists and IVR destinations. Renaming preserves existing call references.'; }
     if ($name === 'next_destination') callflowhooks_section(callflowhooks_text('Routing and Execution'));
     if ($name === 'input_source') callflowhooks_section(callflowhooks_text('Handler Input'));
     $renderer = in_array($name, array('next_destination', 'fallback_destination'), true) ? 'callflowhooks_destination_field' :
@@ -170,36 +208,10 @@ foreach ($configuration['core_fields'] as $name=>$field) {
 }
 callflowhooks_section(sprintf(callflowhooks_text('Handler Options: %s'),callflowhooks_text($extension['title'])));
 foreach ($extension['fields'] as $name=>$field) {
+    if ($extension['identifier'] === 'example' && $name === 'greeting') { $field['label'] = 'Example handler message'; $field['help'] = 'Text returned in the call context by the example handler. It does not play audio or generate speech.'; }
     $key = 'settings.'.$name;
     callflowhooks_field('settings['.$name.']', $field, $selected ? $selected['settings'][$name] : (isset($field['default']) ? $field['default'] : ''), isset($fields[$key]) ? $fields[$key] : '');
 }
 echo ('<tr><td colspan="2"><h6><button type="submit">'.callflowhooks_escape(callflowhooks_text('Save Profile')).'</button> <button name="synchronize" value="1" type="submit" formnovalidate>'.callflowhooks_escape(callflowhooks_text('Synchronize destinations from .conf')).'</button>');
 if ($draft) echo (' <button name="discard_draft" value="1" type="submit" formnovalidate>'.callflowhooks_escape(callflowhooks_text('Discard Draft')).'</button>');
 echo '</h6></td></tr></table></form>';
-
-
-if ($editing) {
-    $usage = null;
-    try { $usage = callflowhooks_profile_usage($selected['identifier']); }
-    catch (Exception $error) { echo '<p role="alert">'.callflowhooks_escape(callflowhooks_text('Destination usage could not be verified. Deletion is disabled.')).'</p>'; }
-    if (is_array($usage)) {
-        echo '<p>'.callflowhooks_escape(sprintf(callflowhooks_text('Used as Destination by %s Object(s)'),count($usage))).'</p>';
-        if ($usage) {
-            echo '<p>'.callflowhooks_escape(callflowhooks_text('References must be removed before deleting this profile.')).'</p><ul>';
-            foreach ($usage as $reference) {
-                $description = html_entity_decode($reference['description'], ENT_QUOTES, 'UTF-8');
-                $url = isset($reference['edit_url']) ? $reference['edit_url'] : '';
-                echo '<li>';
-                if (is_string($url) && preg_match('~^(?:config\.php|index\.php)\?[^\x00-\x20\x7f]*$~D', $url) && strpos($url, '\\') === false) echo '<a href="'.callflowhooks_escape($url).'">'.callflowhooks_escape($description).'</a>';
-                else echo callflowhooks_escape($description);
-                echo '</li>';
-            }
-            echo '</ul>';
-        }
-    }
-    echo '<form method="post" action="'.callflowhooks_escape($callflowhooks_form_url).'">';
-    callflowhooks_form_hidden($configuration, $callflowhooks_embedded);
-    echo '<input type="hidden" name="identifier" value="'.callflowhooks_escape($selected['identifier']).'">';
-    echo '<p><label><input type="checkbox" name="confirm_delete" value="1" required'.($usage === null || $usage ? ' disabled' : '').'> '.callflowhooks_escape(callflowhooks_text('Confirm deletion of this profile. This removes its configuration and credentials.')).'</label></p>';
-    echo '<button name="delete_profile" value="1" type="submit"'.($usage === null || $usage ? ' disabled' : '').'>'.callflowhooks_escape(callflowhooks_text('Delete Profile')).'</button></form>';
-}

@@ -18,7 +18,7 @@ class TranslationCatalog(unittest.TestCase):
                 translations = gettext.GNUTranslations(stream)
             for message, translation in expected.items():
                 self.assertEqual(translations.gettext(message), translation, locale)
-            for message in ('Handler Time Limit (seconds)', 'Digit Entry Timeout (seconds)',
+            for message in ('Handler Time Limit', 'Digit Entry Timeout',
                             'Confirm deletion of this profile. This removes its configuration and credentials.'):
                 self.assertNotEqual(translations.gettext(message), message, locale)
 
