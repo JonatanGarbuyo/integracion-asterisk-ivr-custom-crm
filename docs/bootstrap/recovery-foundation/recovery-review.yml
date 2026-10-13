@@ -1,0 +1,76 @@
+name: CallFlow recovery handoff review
+
+# Handoff bytes for ticket #41 (staging only).
+# Live destination: .github/workflows/recovery-review.yml
+# Reviews the published recovery handoff PR BEFORE its first merge.
+# pull_request trigger is used because issue_comment of new workflows is not
+# available in main yet.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - tools/recovery_*.py
+      - docs/bootstrap/recovery-foundation/**
+      - tests/test_recovery_foundation.py
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: write
+
+jobs:
+  review:
+    if: >-
+      github.repository == 'JonatanGarbuyo/integracion-asterisk-ivr-custom-crm' &&
+      startsWith(github.event.pull_request.head.ref, 'bootstrap/recovery-foundation') &&
+      github.event.pull_request.draft
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        axis: [spec, standards]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          path: candidate
+          persist-credentials: false
+      - name: Load approved role profiles from pinned planning snapshot
+        uses: actions/checkout@v4
+        with:
+          ref: 90798e5749c06136d6b6e34991c2a40382dde668
+          path: profiles
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned OpenCode
+        run: npm install -g opencode-ai@1.18.30
+      - name: Review and publish only this exact HEAD
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
+          PYTHONDONTWRITEBYTECODE: '1'
+          CFH_PR: ${{ github.event.pull_request.number }}
+          CFH_AXIS: ${{ matrix.axis }}
+          CFH_HEAD: ${{ github.event.pull_request.head.sha }}
+          CFH_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python3 candidate/tools/recovery_review.py --pr "$CFH_PR" --axis "$CFH_AXIS" \
+            --head "$CFH_HEAD" --base "$CFH_BASE" --workspace "$GITHUB_WORKSPACE/candidate" \
+            --profiles "$GITHUB_WORKSPACE/profiles/docs/bootstrap/payload/opencode/agents" \
+            --evidence "$RUNNER_TEMP/recovery-review-$CFH_AXIS"
+      - name: Preserve final report even when review fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recovery-review-${{ matrix.axis }}-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/recovery-review-${{ matrix.axis }}/
+          if-no-files-found: ignore
