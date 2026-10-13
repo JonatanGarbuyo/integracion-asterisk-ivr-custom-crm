@@ -31,3 +31,18 @@ Continuar #41 por OpenCode después de #42: captura de cambios no comprometidos,
 ## Brecha del legado
 
 El legado publica PR después de checks/reviews, pierde fuente ante un check fallido y rechaza `.opencode`. El paquete `docs/bootstrap/` permite escribir cambios en rutas permitidas; requiere publicación confiable y revisiones finales antes del merge. No afirmar que la nueva automatización esté integrada mientras siga pendiente.
+
+## Recuperación verificada — 2026-10-13
+
+Run 38297335558 finalizó failure/checks, no timeout. Artifact11770232326 (82740 bytes), ZIP SHA256 f640051c47ba56250fb14b0aa32dfdd741f3ba0a25db7edcf831edffabf017d3, conserva dos candidatos y los reportes del primero.
+
+Candidato final64c8e0a6f3464d30a3ff91100f70b77992815d3a recuperado sin cambios de implementación: 7 archivos completos, SHA256/Git blobs/modos verificados, sin exclusiones ni truncación. Base tree5c0d7d5078bf78d55d0e60279513bab0c448dc0a; patch aplicado en worktree aislado; recovered tree0ef5c15e888b8fb231d5dee367a3ab0653f35c14 coincide exactamente. Metadatos de commit nuevos; no afirmar mismo SHA original.
+
+PR draft #43: https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/pull/43
+HEAD e7465b5198d5aacc887bfc877602f27cf3d70dc8, base f6e7598044297bed2d8e533a16852d06d1a80695. Sin merge/release/deploy ni modificación del código del agente.
+
+Tests nuevos reproducidos: 24 tests, 2 FAIL + 8 ERROR. ReviewCli omite mkdir docs (7 errores); RestoreCli clona dos veces al mismo destino (1 error); dos fallos de captura/restauración no comprometida. Run completo100 tests, 2 FAIL + 8 ERROR + 2 skip. Los reportes Spec/Standards FAIL son del primer SHA e750e45e18f9025ca1125b6ee8c40be5fb8b5d49; no revisan HEAD final. Standards sólo guardó marcador, no causas.
+
+Bloqueo real antes de relanzar: approved_pr exige PR bot, rama feat/callflow-agent-issue-N y draft; el PR recuperado por el operador no cumple esos guards. No lanzar /agent-fix-cycle que sabemos rechazado ni /agent-ticket desde la base sin la fuente recuperada. La excepción de implementación del operador terminó con #42; no editar controles desde ChatGPT ni suplantar autor del bot.
+
+Próxima frontera de planificación: habilitar una entrada de recuperación verificable para OpenCode (run/artifact/base/HEAD/tree y PR43 fijados), preservar ese PR y evitar ampliar permisos a PR arbitrarios. Sólo después OpenCode corrige fixtures/fallos y completa handoff/reviews de #41; no rehacer fuente desde logs. Registrar esta limitación como needs-info hasta disponer de esa ruta. #40/#38 siguen pausados.
