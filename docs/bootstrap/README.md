@@ -1,3 +1,7 @@
+## Frontera actual — #44
+
+El PR recuperado #43 no puede retomarse con los guards actuales. Leer [ticket #44](https://github.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/issues/44) y [plan de continuación](recovered-pr-plan.md). OpenCode genera únicamente el handoff mínimo de autorización/procedencia, continuidad del mismo PR y revisiones finales; #41/#40/#38 siguen pausados. La excepción de implementación del operador terminó con #42.
+
 # Bootstrap de #40
 
 ## Frontera activa: #41

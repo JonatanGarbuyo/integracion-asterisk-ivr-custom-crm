@@ -46,3 +46,7 @@ Tests nuevos reproducidos: 24 tests, 2 FAIL + 8 ERROR. ReviewCli omite mkdir doc
 Bloqueo real antes de relanzar: approved_pr exige PR bot, rama feat/callflow-agent-issue-N y draft; el PR recuperado por el operador no cumple esos guards. No lanzar /agent-fix-cycle que sabemos rechazado ni /agent-ticket desde la base sin la fuente recuperada. La excepción de implementación del operador terminó con #42; no editar controles desde ChatGPT ni suplantar autor del bot.
 
 Próxima frontera de planificación: habilitar una entrada de recuperación verificable para OpenCode (run/artifact/base/HEAD/tree y PR43 fijados), preservar ese PR y evitar ampliar permisos a PR arbitrarios. Sólo después OpenCode corrige fixtures/fallos y completa handoff/reviews de #41; no rehacer fuente desde logs. Registrar esta limitación como needs-info hasta disponer de esa ruta. #40/#38 siguen pausados.
+
+## Frontera activa — 2026-10-13
+
+Ticket #44 ready-for-agent: permitir continuación validada del PR recuperado #43 y revisión del handoff de controles. Sin bloqueadores; #41 queda needs-info/blocked-by #44; #40/#38 pausados. OpenCode implementa en staging aprobado; no se modificó su código ni los controles vivos. Plan y fuente recuperada verificados en GitHub; no aceptación ni despliegue de #43.
