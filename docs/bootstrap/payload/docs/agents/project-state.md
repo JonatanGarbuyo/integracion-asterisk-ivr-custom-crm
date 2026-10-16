@@ -50,3 +50,7 @@ Próxima frontera de planificación: habilitar una entrada de recuperación veri
 ## Frontera activa — 2026-10-13
 
 Ticket #44 ready-for-agent: permitir continuación validada del PR recuperado #43 y revisión del handoff de controles. Sin bloqueadores; #41 queda needs-info/blocked-by #44; #40/#38 pausados. OpenCode implementa en staging aprobado; no se modificó su código ni los controles vivos. Plan y fuente recuperada verificados en GitHub; no aceptación ni despliegue de #43.
+
+## Nuevo objetivo autorizado — 2026-10-16
+
+Usuario elige Dynamic Routes + AGI independientes; ya no necesita addon para este caso. Spec #45 y ticket vertical #46, scripts/carpetas separados en tools/afiliados-crm-agi, PHP5.4+, mock CRM mientras llega contrato. Sólo documentación preparada por el operador; código y tests por OpenCode. #44 terminó failure/timeout run38404676319, candidato1ca4a9df30623ebf36f5bf7d4a7de647127ee127; no se relanza ni se presume pérdida/recuperación de sus artifacts sin inspección. #43/#41/#40/#38 permanecen sin aceptación y pausados; no borrar ni cerrar automáticamente. No hay ejecución activa al planificar. La aceptación final conserva gates/Standards/Spec/CI del HEAD publicado; legacy reviews auxiliares no bastan. No merge/release/deploy.
