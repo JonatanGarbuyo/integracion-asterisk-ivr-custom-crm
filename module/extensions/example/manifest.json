@@ -1,0 +1,11 @@
+{
+  "identifier": "example",
+  "title": "Contexto de ejemplo",
+  "contract_version": 1,
+  "command": ["@python", "handler.py"],
+  "fields": {
+    "greeting": {"type": "string", "label": "Saludo", "default": "Hola", "required": true, "max_length": 80},
+    "style": {"type": "choice", "label": "Estilo", "default": "normal", "options": ["normal", "breve"]},
+    "api_token": {"type": "secret", "label": "Credencial de ejemplo", "default": "", "max_length": 200}
+  }
+}

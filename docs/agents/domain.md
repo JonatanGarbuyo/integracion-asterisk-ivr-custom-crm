@@ -1,6 +1,6 @@
 # Domain docs
 
-Contexto único: atención telefónica de afiliados.
+CallFlow Hooks admite extensiones para distintos dominios. Atención telefónica de afiliados es el primer caso de uso, no una restricción del núcleo.
 
 `CONTEXT.md` contiene exclusivamente vocabulario del dominio. La especificación y las issues conservan las decisiones de comportamiento y de implementación; la investigación documenta los mecanismos de Asterisk.
 
