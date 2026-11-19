@@ -102,3 +102,7 @@ Run44621548471: tests PHP5.4.45 y PHP8.4 SUCCESS, 24 pruebas públicas en cada v
 ## Frontera corregida — 19/11/2026: decisión y prestadora en una salida
 
 Usuario aclara que atender implica cola específica por prestadora, conservando filtros. Spec45/ticket46 actualizados: CRM_ROUTE_KEY devuelve primero INVALID_CUIL/END_CALL/PORTAL; sólo cuando corresponde atención devuelve PRESTADORA:<nombre literal> si existe, o CALL_CENTER si falta/falla API. Matches a colas permanecen en Dynamic Routes; prefijo evita colisión con claves reservadas. Dos rutas nativas con argumentos1/2, mismo AGI. CRM_PRESTADORA auxiliar no es selector principal. HEAD9ae684d todavía no implementa esa combinación; no afirmar lo contrario. Corrección por OpenCode pendiente según roles. Run44621548471 finalizó failure: tests5.4/8.4 SUCCESS, Spec y Standards fallaron ejecución, sin aceptación. No reintento a ciegas ni cambios nuevos de implementación/guards/secretos; addon pausado, sin merge/deploy.
+
+### Salida literal confirmada por el usuario
+
+Se descarta expresamente el prefijo PRESTADORA:. Cuando corresponde atender, CRM_ROUTE_KEY debe devolver el nombre literal de prestadora recibido, por ejemplo Osde; Dynamic Routes mapea Osde→cola. Preservar case/espacios/acentos. Claves de rechazo/Portal prevalecen; sin prestadora/fallo→CALL_CENTER. Spec45/ticket46 corregidos. Implementación combinada todavía pendiente; no hubo ejecución ni cambios de código por esta decisión.
