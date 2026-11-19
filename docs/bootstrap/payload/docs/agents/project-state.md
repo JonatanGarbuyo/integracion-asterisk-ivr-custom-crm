@@ -106,3 +106,9 @@ Usuario aclara que atender implica cola específica por prestadora, conservando 
 ### Salida literal confirmada por el usuario
 
 Se descarta expresamente el prefijo PRESTADORA:. Cuando corresponde atender, CRM_ROUTE_KEY debe devolver el nombre literal de prestadora recibido, por ejemplo Osde; Dynamic Routes mapea Osde→cola. Preservar case/espacios/acentos. Claves de rechazo/Portal prevalecen; sin prestadora/fallo→CALL_CENTER. Spec45/ticket46 corregidos. Implementación combinada todavía pendiente; no hubo ejecución ni cambios de código por esta decisión.
+
+## Corrección publicada y decisión confirmada — 19/11/2026
+
+Usuario confirma rechazo del titular de baja en opción2 y solución final AGI+Dynamic Routes sin continuar plugin para este caso. PR47 HEAD b29f179279627923c0ee7420a54fcc384bc79084, árbol 84ee1a01342f4fa6054622e1e5cda18cd0cafefe comprobado igual al worktree probado. CRM_ROUTE_KEY devuelve prestadora literal (Osde) sólo si corresponde atención; políticas de Portal/rechazo prevalecen; sin prestadora/fallo→CALL_CENTER. README/contrato con dos Dynamic Routes, argumentos1/2 al mismo script y una variable de resultado. Notificación Queue sin cambios.
+
+TDD público RED→GREEN de Osde, suite26 PHP8.4+cURL+AGI/HTTP PASS (17.155s), php-lint PASS. CI es validación de desarrollo, no dependencia de ejecución ni instalación en Issabel. Esta corrección no cambia workflows/guards/modelos/secretos. Validación del HEAD nuevo pendiente al publicar. Run anterior44621548471: tests5.4/8.4 SUCCESS; Spec command-failed y Standards model-no-text, sin informes aprobados. No se reintentó ese run. Sin aceptación manual, merge ni deploy. Próximo paso funcional: VM/menú aislado y Atenciones testing.
