@@ -98,3 +98,7 @@ Verificación local: 24 tests públicos PHP8.4+cURL/AGI/HTTP PASS, php-lint4 PAS
 ### Gates del HEAD 9ae684dd5722b8660a2384e9c10dceb215c01a40
 
 Run44621548471: tests PHP5.4.45 y PHP8.4 SUCCESS, 24 pruebas públicas en cada versión y php-lint4 PASS. Spec terminó failure/command-failed sin informe; artifact14577003991 (240 bytes), logs inspeccionados, no asumir causa ni aprobación. Standards aún en curso al registrar. No reintento ciego, no aceptación/merge/deploy. Implementación ya publicada en PR47, no confundir este bloqueo de revisión con ausencia de scripts.
+
+## Frontera corregida — 19/11/2026: decisión y prestadora en una salida
+
+Usuario aclara que atender implica cola específica por prestadora, conservando filtros. Spec45/ticket46 actualizados: CRM_ROUTE_KEY devuelve primero INVALID_CUIL/END_CALL/PORTAL; sólo cuando corresponde atención devuelve PRESTADORA:<nombre literal> si existe, o CALL_CENTER si falta/falla API. Matches a colas permanecen en Dynamic Routes; prefijo evita colisión con claves reservadas. Dos rutas nativas con argumentos1/2, mismo AGI. CRM_PRESTADORA auxiliar no es selector principal. HEAD9ae684d todavía no implementa esa combinación; no afirmar lo contrario. Corrección por OpenCode pendiente según roles. Run44621548471 finalizó failure: tests5.4/8.4 SUCCESS, Spec y Standards fallaron ejecución, sin aceptación. No reintento a ciegas ni cambios nuevos de implementación/guards/secretos; addon pausado, sin merge/deploy.
