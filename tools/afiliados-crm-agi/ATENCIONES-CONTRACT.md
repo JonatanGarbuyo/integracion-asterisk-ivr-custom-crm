@@ -36,7 +36,7 @@ Tipos: cuilValido/esTitular/activo/esProveedor booleanos; prestadora/provincia s
 cuilValido=false implica restantes datos vacíos (false/null/[]).
 esTitular distingue titular de familiar; activo sólo true para titular sin baja.
 Prestadora/provincia/referencias pueden corresponder a titular o familiar, incluso de baja; null/[] si no está en padrón.
-referencias son vigentes, únicas y ordenadas por el servidor. La central sólo evalúa si la lista está vacía.
+referencias son vigentes, únicas y ordenadas por el servidor; este adaptador no las usa para derivar.
 No hay id del afiliado, nombre ni CUIL en la respuesta: no exigirlos.
 
 Fallos:400 parámetros,401 clave ausente/incorrecta,403 IP no habilitada,503 servidor sin clave, otros5xx. Cuerpos401/403/503 pueden estar vacíos.
@@ -57,44 +57,35 @@ Fallos HTTP/red/JSON se ignoran para el curso de la conversación. El AGI despac
 
 Instalar/preparar el hook de respuesta también cuando GET falle y la llamada vaya a la cola de contingencia, conservando el id original. Un eventual POST SIN_VALIDACION es válido. No exigir un afiliado_id, agenteCRM o CUIL para despachar.
 
-## Reglas PROPUESTAS por el documento del Call Center
-Aún deben confirmarse para la configuración operativa; los mocks pueden verificar fielmente esta tabla. No inferir reglas adicionales por prestadora/provincia.
+## Alcance de enrutamiento confirmado por el usuario19/11
+El AGI sólo consulta Atenciones y expone el valor de prestadora. TODO el mapa origen→destino reside en Dynamic Routes. El AGI no contiene colas, contextos Asterisk, mapas de prestadoras ni reglas comerciales por opción, titularidad, actividad, referencias o provincia.
+Las reglas sugeridas en central.md NO se implementan en esta entrega. La opción del menú se envía porque la API la exige para estadísticas; no modifica la lógica del AGI.
 
-Orden de evaluación opción1 (quiere afiliarse):
-1. cuilValido=false → INVALID_CUIL.
-2. esProveedor=true → END_CALL.
-3. esTitular=true Y activo=true → END_CALL.
-4. Resto → CALL_CENTER.
-
-Orden opción2 (ya beneficiario):
-1. cuilValido=false → INVALID_CUIL.
-2. esTitular=false O activo=false → END_CALL.
-3. referencias no vacía → PORTAL.
-4. referencias vacía → CALL_CENTER.
-
-El chequeo de esProveedor de opción1 NO se agrega a opción2.
-Una falla técnica precede a estas reglas y siempre devuelve CALL_CENTER, incluso si el CUIL capturado parecía inválido.
+Resultado: CRM_ROUTE_KEY es el string de prestadora tal como lo devuelve el servidor, manteniendo mayúsculas, espacios y acentos; sin alias o normalización oculta. El protocolo AGI debe escapar el valor de forma segura, sin ejecutar contenido.
+Si cuilValido=false, prestadora=null/vacía, hay JSON/tipo inválido en campos usados o falla la API: CRM_ROUTE_KEY vacío y Dynamic Routes usa Default.
+La API devuelve siete campos; el adaptador sólo usa cuilValido (bool) y prestadora (string|null). No exige id/nombre ni evalúa esTitular, activo, provincia, referencias o esProveedor para derivar.
 
 ## Configuración propuesta de Dynamic Routes
-Mantener dos destinos Dynamic Routes que compartan el mismo AGI:
-- IVR opción1 → Afiliarse; argumento de opción fijo1.
-- IVR opción2 → Beneficiarios; argumento fijo2.
-- Opción3 → destino PBX a confirmar, sin GET.
+Las opciones del IVR que consultan CUIL pueden apuntar al MISMO destino Dynamic Routes y compartir un único mapa.
+En el módulo IVR2.11 consultado, la selección normal guarda __IVR_DIGIT_PRESSED. Verificar que la instalación la informa correctamente antes de usarla.
+- Get DTMF input: activado; Announcement: audio solicitando CUIL.
+- Input Variable: vacío, para no crear copia heredable del CUIL.
+- Source type: AGI.
+- AGI script and parameters: crm_get_afiliado.agi.php,${IVR_DIGIT_PRESSED}.
+- El primer argumento es opcion (1/2). El AGI lee el CUIL desde la variable de captura dtmfinput, verificada en dialplan y configurable. Después la limpia. No pasar CUIL en argv.
+- AGI Result Variable: CRM_ROUTE_KEY.
+- Result Variable adicional: opcional/vacío.
+- Entradas y Default administrados por el usuario en Dynamic Routes.
 
-Get DTMF input activado, Announcement de System Recordings, tiempo de captura independiente del timeout HTTP.
-Propuesta para evitar CUIL en argv de AGI: Source AGI, script crm_get_afiliado.agi.php,1 (o ,2); leer la variable local dtmfinput que crea Dynamic Routes2.11 y limpiarla tras consumirla. Input Variable vacío para no crear una copia heredable del CUIL. Confirmar el nombre en dialplan instalado; permitir configuración explícita de ese nombre.
-AGI Result Variable: CRM_ROUTE_KEY; guardar únicamente el id opaco de llamada y clave abstracta de destino, no la respuesta.
-Entradas:
-| Valor | Destino PBX |
+Ejemplo con nombres ficticios (usar los nombres EXACTOS que devuelva testing):
+| Match | Destination |
 |---|---|
-| CALL_CENTER | cola6000, o la acordada |
-| INVALID_CUIL | anuncio CUIL inválido y colgar |
-| END_CALL | colgar |
-| PORTAL | anuncio con URL del Portal, destino final por confirmar |
-| Default | cola Call Center |
+| Prestadora A | Queues →6000 |
+| Prestadora B | Queues →6001 |
+| Default | Cola del Call Center acordada |
 
-Portal se describe como una locución que informa su URL. No asumir transferencia a0800 ni una llamada HTTP a dicha URL. Confirmar URL y finalización del anuncio antes de grabar/configurar.
-Estos nombres de claves son del adaptador propuesto, no campos ni destinos devueltos por Atenciones.
+Una prestadora sin entrada también usa Default. No hay cortes automáticos ni desvío al Portal por los datos de respuesta. Cualquier destino externo se configura como destino PBX en el módulo, por decisión del usuario.
+Si IVR_DIGIT_PRESSED no está disponible, parametrizar la opción explícitamente en la configuración del IVR/ruta; no inventar una opción estadística. La opción3 conserva un destino directo sin GET, si se mantiene ese menú.
 
 ## Queue e interno del cliente
 Evidencia instalada: Asterisk11.25.3, IssabelPBX2.11.0-48, cola6000, miembros dinámicos Local/<interno>@from-queue/n. Cada operador tiene interno propio; no agentes clásicos configurados.
@@ -103,17 +94,21 @@ setinterfacevar=yes en [6000](+) de queues_post_custom.conf después de confirma
 QAGI se ejecuta después de responder y antes del bridge, sobre el llamante. No sustituir por handlers pre-dial b/B; no se necesita AMI permanente.
 
 ## Datos personales
-referencias sólo vive en memoria durante la decisión. No persistir array/siglas, JSON remoto, prestadora/provincia o CUIL en jobs, CDR, logs ni variables heredables de atención. El job del POST contiene únicamente llamada/interno.
+El adaptador descarta los campos no utilizados, incluidas referencias. No persistir array/siglas, JSON remoto, provincia o CUIL en jobs, CDR, logs ni variables heredables de atención. prestadora sólo se expone como CRM_ROUTE_KEY para que Dynamic Routes aplique su mapa; no se copia al job del aviso. El job del POST contiene únicamente llamada/interno.
 No loguear URL GET completa ni X-Api-Key ni cuerpos del servidor. Diagnósticos acotados por categoría HTTP/timeout/schema, sin datos del beneficiario.
 Las trazas AGI/DTMF del propio Asterisk pueden exponer datos si se activan: pruebas con datos ficticios y revisión de logging; no prometer que el script controla los logs del servidor HTTP o de toda la PBX.
 
 ## Pruebas de aceptación
-CLI/protocolo AGI y HTTP loopback como seams públicos, PHP real. Cubrir todas las ramas en orden de las opciones1/2; opción3 sin GET; CUIL inválido/vacío y normalización; schema completo/booleanos estrictos; timeout3s/HTTP no200/JSON inválido → CALL_CENTER; GET no404 para ausencia de afiliado; misma llamada tras reintentos y cambios de canal; POST formulario/X-Api-Key sin CUIL/refs/agente; tres resultados200 y fallos sin bloquear; correlación en fallback; interno Local real; ausencia de datos sensibles en stdout/argv/logs/jobs.
-Testing manual en menú de prueba, sin línea real: operadora carga Mi interno, atiende y recibe pantalla; apagar Atenciones y comprobar ingreso a Call Center.
+CLI/protocolo AGI y HTTP loopback como seams públicos, PHP real. Verificar prestadora con espacios/acentos/case conservados y escaping seguro; mismo resultado para opciones1/2 cuando prestadora es igual; ausencia de reglas por titularidad/actividad/referencias/provincia/proveedor; prestadora nula/vacía/CUIL inválido/HTTP no200/schema inválido/timeout3s → resultado vacío y Default del módulo.
+Verificar X-Api-Key, formulario POST con sólo llamada/interno, límites40/10, misma llamada tras reintentos/Local/fallo GET, tres resultados200/fallos POST sin bloquear y ausencia de CUIL/referencias en stdout de diagnóstico/argv/logs/jobs. Opción3 sin GET. No tests de una tabla de destinos dentro del AGI, porque no existe.
+Testing PBX real: configurar dos prestadoras→dos colas en Dynamic Routes; operadora carga Mi interno, atiende y recibe pantalla; apagar Atenciones y comprobar ingreso a Default/Call Center.
 No equivale a aceptación instalada ni a revisión aprobada de PR47.
 
 ## Pendientes externos
 - URL real de testing y clave por canal seguro; producción cuando corresponda.
 - IP de origen efectiva de la central y prueba HTTPS/certificado.
-- Confirmación operativa de reglas sugeridas, destino opción3 y URL/finalización del anuncio Portal.
+- Nombres exactos de prestadoras de testing y destinos acordados para configurar el mapa nativo; destino directo opción3 si se conserva el menú.
 - Casos de prueba ficticios proporcionados por Atenciones.
+
+## Aclaración de alcance del usuario19/11/2026
+La API aporta datos y la central usa Dynamic Routes para mapear prestadora→destino. Este alcance reemplaza la interpretación anterior de reglas sugeridas, cortes y Portal. El segundo AGI únicamente informa llamada/interno; Atenciones resuelve la operadora. No hay cambio de código por esta corrección documental.
