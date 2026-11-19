@@ -164,6 +164,18 @@ class AtencionesAgi(unittest.TestCase):
         self.assertEqual(values['dtmfinput'], '')
         self.assertNotIn('test-secret', '\n'.join(commands) + stderr)
 
+    def test_attention_returns_the_literal_prestadora_in_the_single_route_variable(self):
+        self.state['payload'] = record(prestadora='Osde')
+        values, _, _ = self.lookup(option='2')
+        self.assertEqual(values['CRM_ROUTE_KEY'], 'Osde')
+
+    def test_attention_without_prestadora_falls_back_to_general_call_center(self):
+        for name in (None, ''):
+            with self.subTest(prestadora=name):
+                self.state['payload'] = record(prestadora=name)
+                values, _, _ = self.lookup(option='2')
+                self.assertEqual(values['CRM_ROUTE_KEY'], 'CALL_CENTER')
+
     def test_reference_object_is_not_a_valid_json_list(self):
         self.state['payload'] = record(referencias={})
         values, _, _ = self.lookup()
@@ -189,16 +201,16 @@ class AtencionesAgi(unittest.TestCase):
             ('1', record(cuilValido=False, esProveedor=True), 'INVALID_CUIL'),
             ('1', record(esProveedor=True, esTitular=False, activo=False), 'END_CALL'),
             ('1', record(), 'END_CALL'),
-            ('1', record(activo=False), 'CALL_CENTER'),
-            ('1', record(esTitular=False, activo=False, referencias=['FICTIONAL_REF']), 'CALL_CENTER'),
+            ('1', record(activo=False), 'Prestadora de prueba'),
+            ('1', record(esTitular=False, activo=False, referencias=['FICTIONAL_REF']), 'Prestadora de prueba'),
             ('1', record(esTitular=False, activo=False, prestadora=None, provincia=None), 'CALL_CENTER'),
             ('2', record(cuilValido=False, esTitular=False), 'INVALID_CUIL'),
             ('2', record(esTitular=False), 'END_CALL'),
             ('2', record(activo=False, referencias=['FICTIONAL_REF']), 'END_CALL'),
             ('2', record(referencias=['FICTIONAL_REF']), 'PORTAL'),
             ('2', record(esProveedor=True, referencias=['FICTIONAL_REF']), 'PORTAL'),
-            ('2', record(esProveedor=True), 'CALL_CENTER'),
-            ('2', record(), 'CALL_CENTER'),
+            ('2', record(esProveedor=True), 'Prestadora de prueba'),
+            ('2', record(), 'Prestadora de prueba'),
         ]
         for option, payload, expected in cases:
             with self.subTest(option=option, payload=payload):
@@ -206,11 +218,13 @@ class AtencionesAgi(unittest.TestCase):
                 values, _, _ = self.lookup(option=option)
                 self.assertEqual(values['CRM_ROUTE_KEY'], expected)
 
-    def test_prestadora_is_available_verbatim_for_a_separate_native_map(self):
+    def test_prestadora_keeps_unicode_case_and_escaping_without_overriding_rejection(self):
         name = 'Prestadora Ñandú "Prueba" \\ Sucursal'
         self.state['payload'] = record(prestadora=name)
-        values, _, _ = self.lookup()
+        values, _, _ = self.lookup(option='2')
+        self.assertEqual(values['CRM_ROUTE_KEY'], name)
         self.assertEqual(values['CRM_PRESTADORA'], name)
+        values, _, _ = self.lookup(option='1')
         self.assertEqual(values['CRM_ROUTE_KEY'], 'END_CALL')
 
     def test_optional_and_invalid_cuil_are_sent_to_the_api_for_validation(self):
@@ -291,7 +305,7 @@ class AtencionesAgi(unittest.TestCase):
 
     def test_menu_option_can_be_read_from_the_inherited_ivr_variable(self):
         values, _, _ = self.lookup(option='', variables=dict(IVR_DIGIT_PRESSED='2'))
-        self.assertEqual(values['CRM_ROUTE_KEY'], 'CALL_CENTER')
+        self.assertEqual(values['CRM_ROUTE_KEY'], 'Prestadora de prueba')
         self.assertEqual(len(self.state['requests']), 1)
         query = parse_qs(urlsplit(self.state['requests'][0]['path']).query)
         self.assertEqual(query['opcion'], ['2'])
@@ -422,9 +436,9 @@ class AtencionesAgi(unittest.TestCase):
         spec.loader.exec_module(mock)
         self.server.RequestHandlerClass = mock.make_handler('test-secret')
         cases = [('20000000001', '1', 'END_CALL', 'Prestadora A'),
-                 ('20000000001', '2', 'CALL_CENTER', 'Prestadora A'),
+                 ('20000000001', '2', 'Prestadora A', 'Prestadora A'),
                  ('20000000028', '2', 'PORTAL', 'Prestadora B'),
-                 ('20000000036', '1', 'CALL_CENTER', 'Prestadora A'),
+                 ('20000000036', '1', 'Prestadora A', 'Prestadora A'),
                  ('20000000036', '2', 'END_CALL', 'Prestadora A'),
                  ('20000000044', '2', 'END_CALL', 'Prestadora B'),
                  ('30000000007', '1', 'END_CALL', ''),

@@ -34,6 +34,8 @@ function main_lookup() {
     $decision = crm_decision($option, $data);
     $prestadora = $data['cuilValido'] && $data['prestadora'] !== null ? $data['prestadora'] : '';
     unset($data); // No medical fields enter AGI/channel/job output.
+    // One Dynamic Routes value: policies take precedence over provider-specific attention.
+    if ($decision === 'CALL_CENTER' && $prestadora !== '') { $decision = $prestadora; }
     crm_agi_set('CRM_PRESTADORA', $prestadora);
     crm_agi_set('CRM_ROUTE_KEY', $decision);
 }

@@ -30,7 +30,7 @@ Respuesta HTTP 200 con todos los campos:
 
 Evaluación en el orden de cada opción:
 
-| Opción | Condición | Valor |
+| Opción | Condición | Decisión lógica |
 |---|---|---|
 | 1 | CUIL inválido | `INVALID_CUIL` |
 | 1 | Proveedor | `END_CALL` |
@@ -42,9 +42,17 @@ Evaluación en el orden de cada opción:
 | 2 | Referencias vacías | `CALL_CENTER` |
 | 1/2 | Error de red, timeout, HTTP distinto de 200, JSON/schema inválido | `CALL_CENTER` |
 
-La opción 2 no añade un filtro por proveedor. Un error técnico nunca se transforma en CUIL inválido. La opción 3 devuelve defensivamente `OPTION_3` sin HTTP; se recomienda conectarla directamente a su destino nativo.
+La opción 2 rechaza a un titular dado de baja; el usuario lo confirmó. No añade un filtro por proveedor. Un error técnico nunca se transforma en CUIL inválido. La opción 3 devuelve defensivamente `OPTION_3` sin HTTP; se configura su anuncio y corte directamente en el IVR.
 
-También se expone `CRM_PRESTADORA`: nombre literal, sin normalizar espacios, acentos ni mayúsculas, o vacío si CUIL inválido, null o fallo. Permite configurar una ruta por prestadora cuando se quiera ese criterio. En ese modo las reglas siguen disponibles en `CRM_ROUTE_KEY`, pero **no gobiernan el selector configurado para prestadora**. Su Default también debe ser Call Center. No hay mapa de prestadoras/destinos en los scripts.
+Para producir la única variable de selección `CRM_ROUTE_KEY`:
+
+1. Si la decisión lógica es `INVALID_CUIL`, `END_CALL` o `PORTAL`, devolver esa clave. Tiene prioridad sobre la prestadora.
+2. Si la decisión lógica permite atención (`CALL_CENTER`) y hay prestadora no vacía, devolver su nombre literal: por ejemplo `Osde`. Sin prefijo, aliases ni cambios de mayúsculas, espacios o acentos.
+3. Si corresponde atender pero no hay prestadora, o falla la consulta, devolver `CALL_CENTER`.
+
+Dynamic Routes mapea `Osde` a la cola de Osde, otros nombres a sus colas, y las claves especiales a anuncios/corte o cola general. Default es cola general para nombres no configurados. El AGI no contiene el mapa ni ejecuta destinos.
+
+`CRM_PRESTADORA` sigue disponible como dato auxiliar literal, o vacío ante CUIL inválido, null o fallo; no es el selector principal porque omitiría las reglas. El IVR tiene dos Dynamic Routes con `crm_get_afiliado.agi.php,1` y `crm_get_afiliado.agi.php,2`, respectivamente. Ambos seleccionan `CRM_ROUTE_KEY` y reutilizan el mismo script.
 
 ## POST /api/central/llamada-atendida
 

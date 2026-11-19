@@ -1,6 +1,6 @@
 # Dynamic Routes + AGI para Atenciones
 
-Dos AGI independientes del addon (que permanece pausado), PHP CLI 5.4+ con cURL y JSON. Sin Composer, Python en producción ni listener AMI.
+Integración standalone mediante Dynamic Routes y dos AGI, PHP CLI 5.4+ con cURL y JSON. Sin dependencia del plugin propio, Composer, Python en producción ni listener AMI.
 
 `crm_get_afiliado.agi.php` consulta el servidor y calcula valores. **No ejecuta Goto, Queue, Playback ni Hangup**. Dynamic Routes relaciona cada valor con un destino nativo. `crm_set_atencion.agi.php` avisa en segundo plano qué interno respondió usando el mismo id del llamante.
 
@@ -27,7 +27,14 @@ Completar `[atenciones] base_url` y `api_key` en `/etc/asterisk/afiliados-crm.co
 
 ## Configurar Dynamic Routes
 
-Crear una ruta de prueba en la configuración PBX. Las opciones 1 y 2 del IVR pueden compartirla:
+Crear dos Dynamic Routes de prueba en la configuración PBX. Ambos usan el mismo script y una sola variable de resultado:
+
+| Opción del IVR | Dynamic Route | AGI script and parameters |
+|---|---|---|
+| 1 — Quiero afiliarme | Afiliaciones | `crm_get_afiliado.agi.php,1` |
+| 2 — Soy beneficiario | Beneficiarios | `crm_get_afiliado.agi.php,2` |
+
+Configurar en ambos:
 
 | Campo nativo | Valor |
 |---|---|
@@ -36,12 +43,11 @@ Crear una ruta de prueba en la configuración PBX. Las opciones 1 y 2 del IVR pu
 | Maximum digits | 11 |
 | Input Variable | Vacío (evitar otra copia del CUIL) |
 | Source type | AGI |
-| AGI script and parameters | `crm_get_afiliado.agi.php,${IVR_DIGIT_PRESSED}` |
 | AGI Result Variable | `CRM_ROUTE_KEY` |
 | Result Variable adicional | Vacío, salvo que se necesite expresamente |
 | Default Destination | Cola del Call Center |
 
-La variable del dígito seleccionado está presente en el IVR 2.11 consultado; confirmar en el dialplan instalado. Si el argumento llega vacío, el AGI lee `IVR_DIGIT_PRESSED`. Para una prueba fuera del IVR, usar argumento literal `1` o `2`. No inventar esa opción: la API la registra para estadísticas. Opción 3: apuntar directamente a su destino nativo sin GET.
+El argumento literal identifica la opción elegida y se envía a la API para estadísticas. No se duplican los scripts. Como alternativa, el AGI conserva compatibilidad con `IVR_DIGIT_PRESSED` cuando el argumento está vacío, pero las dos rutas con argumentos explícitos no dependen de esa variable. Opción 3: anuncio del Portal de Proveedores seguido de Terminate Call, sin GET. En el IVR deshabilitar Direct Dial y configurar el destino de timeout sin selección a Terminate Call.
 
 El AGI lee CUIL de `dtmfinput` y lo limpia. Si la versión instalada usa otra variable de captura, ajustar `[runtime] cuil_variable` después de comprobar el dialplan. No pasar el CUIL como parámetro del AGI.
 
@@ -49,15 +55,19 @@ Ejemplo de mapa **en Dynamic Routes** (colas y audios ilustrativos):
 
 | Match | Destination |
 |---|---|
-| `CALL_CENTER` | Queues → 6000 |
-| `PORTAL` | Announcement → Mensaje Portal → destino acordado |
-| `INVALID_CUIL` | Announcement → CUIL inválido → Terminate Call |
-| `END_CALL` | Announcement opcional → Terminate Call |
+| `Osde` | Queues → cola de Osde |
+| `Prestadora B` | Queues → cola de Prestadora B |
+| `CALL_CENTER` | Queues → 6000 (general) |
+| `PORTAL` | Announcement → Mensaje Portal → Terminate Call |
+| `INVALID_CUIL` | Announcement → No es posible atender → Terminate Call |
+| `END_CALL` | Announcement → No es posible atender → Terminate Call |
 | Default | Queues → 6000 |
 
-El AGI evalúa las reglas del documento para devolver estas claves; no conoce números de cola, audios ni contextos. Cambiar un destino requiere modificar el mapa nativo, no el script. Configurar audios y URL del Portal con el responsable antes de grabarlos.
+El AGI primero evalúa las reglas del documento. Si corresponde atender y existe prestadora, `CRM_ROUTE_KEY` contiene su nombre EXACTO, por ejemplo `Osde`, sin prefijo ni normalización. Si corresponde rechazo o Portal, conserva `END_CALL`, `INVALID_CUIL` o `PORTAL` aunque el servidor informe prestadora. Si no hay prestadora o falla la API, devuelve `CALL_CENTER`.
 
-**Alternativa por prestadora:** cambiar AGI Result Variable a `CRM_PRESTADORA` y usar nombres EXACTOS del servidor como Match (`Prestadora A` → cola 6000, `Prestadora B` → cola 6001). Ese selector utiliza prestadora en lugar de la decisión de negocio. Default sigue siendo Call Center para nombres sin mapa, datos ausentes y fallos. No se exportan referencias ni provincia para enrutar.
+En opción 2, un titular dado de baja devuelve `END_CALL`, confirmado por el usuario. Agregar en cada Dynamic Route los nombres reales de prestadoras como Match y seleccionar sus colas; cada ruta conserva su mapa nativo. Nombres sin Match usan Default (cola general).
+
+El selector principal siempre es `CRM_ROUTE_KEY`: combina política y prestadora en un único valor. `CRM_PRESTADORA` permanece sólo como dato auxiliar; seleccionarla directamente omitiría los filtros. No hay números de cola, mapas de destinos ni normalizadores dentro del AGI. Configurar audios y URL del Portal con el responsable antes de grabarlos.
 
 ## Notificar quién atendió
 
@@ -118,3 +128,5 @@ python3 -m unittest discover -s tests -p test_afiliados_crm_agi.py -v
 ```
 
 Ejecutar desde la raíz del repositorio. La suite no se omite silenciosamente si faltan PHP/cURL. Prueba procesos AGI y HTTP reales, no funciones internas simuladas. La instalación Asterisk 11, el certificado del proveedor y la pantalla de la operadora requieren validación en la PBX de laboratorio; no se declaran aceptados por pasar estos tests.
+
+El CI de GitHub sólo automatiza las pruebas de los scripts; no es una dependencia de ejecución ni de la instalación manual en Issabel. No construye ni instala un plugin.
