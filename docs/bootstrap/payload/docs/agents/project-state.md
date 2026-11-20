@@ -128,3 +128,9 @@ Validación local reproducida: 26 tests PHP8.4+cURL con AGI/HTTP reales PASS (17
 Listo para instalación manual en VM: configurar base_url/api_key de testing, dos Dynamic Routes con mismo AGI y argumentos1/2, CRM_ROUTE_KEY como selector y mapa literal prestadora→cola; setinterfacevar en colas y operadora con Mi interno. PHP CLI+cURL+JSON en PBX; Python3 sólo para mock externo, no para runtime.
 
 Preparado/publicado: sí. Probado localmente: sí. Revisiones automáticas: suspendidas, sin PASS. Instalado/PBX real/pantalla operadora: pendiente. Merge/release/despliegue: no realizados.
+
+## Entrega mínima confirmada e implementada
+
+Usuario descartó el exceso de estructura y confirmó dos AGI + un .conf. PR47 HEAD d69db743963879726591f8e511b72ebdcbcf6ffa, árbol 55fb71fcd2c7ec5e4ccbd35320cf0e65ee5193f2. Consulta autocontenida; aviso autocontenido con modo --send que se relanza en segundo plano. Conserva protocolo/seguridad/reglas/correlación y notificación no bloqueante. Eliminados common.php, crm_worker.php y .tgz; mock movido a tests/fixtures. Sólo se instalan los dos PHP y el .conf de URL/clave. README de descarga directa y configuración actualizado. Spec45/ticket46 reconciliados con estado actual;46 ready-for-human para laboratorio.
+
+Prueba pública nueva instala sólo dos PHP: RED por falta de common.php antes, GREEN después, GET+POST comprobados con HTTP real. Suite27 local PHP8.4+cURL PASS (18.141s), php-lint2 PASS. Sin CI, OpenCode, agentes remotos, cambios a workflows o secretos; commit [skip ci]. Revisiones históricas no equivalen a PASS. Sin merge/release/instalación/deploy ni aceptación manual. Siguiente paso: VM/Atenciones testing.
