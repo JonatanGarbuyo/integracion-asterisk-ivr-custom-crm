@@ -116,3 +116,15 @@ TDD público RED→GREEN de Osde, suite26 PHP8.4+cURL+AGI/HTTP PASS (17.155s), p
 ### Evidencia actual del HEAD b29f179279627923c0ee7420a54fcc384bc79084
 
 Run44631995485 completado: PHP5.4.45 y8.4.28, 26 tests y php-lint4 PASS en cada versión. Spec/Standards fallaron ejecución command-failed; logs inspeccionados, sin aprobar gates ni atribuir causa no observada. No workflows activos de ese run ni reintentos ciegos. Scripts corregidos y disponibles en PR47; no aceptación/merge/deploy. Instalación manual en VM independiente del CI. Próximo paso funcional: laboratorio Issabel con dos rutas, mapa literal prestadora→cola y pantalla de operadora; opción2 titular de baja rechazada según confirmación del usuario.
+
+## Entrega standalone lista para laboratorio, sin Actions
+El usuario informó que desactivó todos los CI por costo y pidió dejar listos los AGI. No lanzar GitHub Actions, OpenCode ni modelos remotos para continuar esta entrega. Verificaciones locales, sin presentar revisiones automáticas fallidas como aprobadas.
+
+PR47 HEAD aaecd3e0d5318d140b94cdb95a8ead3597bdc599; paquete descargable: https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/aaecd3e0d5318d140b94cdb95a8ead3597bdc599/tools/afiliados-crm-agi/dist/afiliados-crm-agi.tgz
+Runtime PHP sin cambios respecto de b29f179; preparación de paquete/guía en este HEAD. Incluye sólo8 archivos de scripts/config/mock/guía + SOURCE.txt y SHA256SUMS. No workflows, plugin ni credenciales. SHA256 del tgz: cf9f28cd695ffc124244f87cf49061f324ef5658b224fb94c7da9a185ea615df. Verificados10 miembros regulares, nombres sin traversal y manifiesto SHA256; blobs/árbol remotos coinciden con los preparados.
+
+Validación local reproducida: 26 tests PHP8.4+cURL con AGI/HTTP reales PASS (17.163s), php-lint4 PASS. Runtime idéntico al probado previamente en PHP5.4.45. No se lanzó CI/OpenCode ni se reactivó configuración. Commit con [skip ci] como defensa adicional.
+
+Listo para instalación manual en VM: configurar base_url/api_key de testing, dos Dynamic Routes con mismo AGI y argumentos1/2, CRM_ROUTE_KEY como selector y mapa literal prestadora→cola; setinterfacevar en colas y operadora con Mi interno. PHP CLI+cURL+JSON en PBX; Python3 sólo para mock externo, no para runtime.
+
+Preparado/publicado: sí. Probado localmente: sí. Revisiones automáticas: suspendidas, sin PASS. Instalado/PBX real/pantalla operadora: pendiente. Merge/release/despliegue: no realizados.
