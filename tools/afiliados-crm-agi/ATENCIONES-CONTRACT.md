@@ -24,7 +24,15 @@ Claves iniciales: CALL_CENTER, PORTAL, END_CALL, INVALID_CUIL. El AGI no contien
 
 Una clave futura válida se devuelve intacta; Dynamic Routes decide si tiene Match o usa Default. No se devuelven prestadoras ni datos del afiliado. Las variables antiguas de afiliación se limpian por compatibilidad, sin rellenarlas.
 
-Fallo HTTP/red/timeout, JSON ilegible/no objeto, destino ausente/vacío/null/no string o técnicamente inválido → CALL_CENTER. No existe un resultado ERROR propio. Configurar también Default a CallCenter, por si AGI no llega a ejecutarse o la clave aún no está mapeada.
+Decisión posterior del usuario: fallo HTTP/red/timeout, JSON ilegible/no objeto, destino ausente/vacío/null/no string o técnicamente inválido → ERROR. Esto sustituye la recomendación CALL_CENTER del documento del proveedor; el endpoint no cambia. El operador define ERROR y Default en Dynamic Routes; no hay derivación automática a CallCenter. Una clave nueva sin Match usa Default.
+
+## Captura confirmada, autorizada después del contrato
+
+Dynamic Routes tiene Get DTMF input desactivado. El primer AGI solicita CUIL, captura hasta11 dígitos (o finaliza con #), reproduce «Usted ingresó» y cada dígito mediante audios propios0..9, y solicita1 para confirmar o2 para reingresar. Sólo1 dispara el GET. Sin validación local del padrón ni checksum; un valor corto confirmado puede recibir INVALID_CUIL del servidor.
+
+Tres intentos totales configurables (incluye el primero), timeout de inactividad de entrada5s y confirmación5s, configurables como segundos enteros positivos. Un ingreso incompleto por timeout, ingreso vacío, *, reingreso o confirmación inválida/ausente consume intento. Agotamiento→INPUT_FAILED, sin GET. Error de audio/configuración/protocolo→ERROR; corte del canal detiene la consulta. HTTP sigue con presupuesto3s. Script no ejecutable/ausente→Default nativo.
+
+El CUIL no se exporta a variables de canal ni se pasa por argv. Audios en custom/atenciones bajo sounds; request_audio/entered_audio/confirm_audio/digit_audio_prefix en .conf. No voces del sistema ni SAY DIGITS.
 
 Errores remotos:400 parámetros,401 clave,403 IP,503 falta clave del servidor y otros5xx. No interpretarlos como decisiones de afiliación.
 
@@ -46,6 +54,6 @@ Dos AGI autocontenidos más un .conf local. Sin paquete, common.php, tercer work
 
 No registrar CUIL/URL completa/clave/cuerpo remoto en logs o CDR; no guardar datos del afiliado en jobs. Diagnósticos de categorías fijas. Las trazas AGI/DTMF de Asterisk pueden exponer entrada si se habilitan: sólo datos ficticios al depurar.
 
-Pruebas locales por stdin/stdout AGI y HTTP real simulado: sólo destino,4 claves iniciales y futuras, ausencia de reglas, errores/tipos/timeout/TLS, correlación, interno, dos archivos suficientes y POST no bloqueante. Sin Actions/OpenCode por decisión del usuario. No equivalen a aceptación en PBX/CRM real.
+Pruebas locales por stdin/stdout AGI y HTTP real simulado: captura/confirmación/reingreso con audios propios, intentos y tiempos configurables, INPUT_FAILED/ERROR,4 claves iniciales y futuras, ausencia de reglas de negocio, errores/tipos/timeout/TLS, correlación, interno, dos archivos suficientes y POST no bloqueante. Sin Actions/OpenCode por decisión del usuario. No equivalen a aceptación en PBX/CRM real.
 
 Usuario configura audios, IVR y colas. Queda su prueba de menú aislado contra testing y aviso de la operadora; URL/audio del Portal de beneficiarios la confirma CallCenter. No hubo instalación, merge o deploy desde este entorno.

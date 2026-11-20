@@ -34,28 +34,62 @@ api_key = "CLAVE_DE_TESTING"
 
 La base de producción es `https://sistema.ospaca.com/Atenciones`; para el laboratorio usar testing y su clave correspondiente. No guardar claves reales en Git. `curl` y `json` deben aparecer en `php -m`; `exec` debe estar habilitado para despachar el aviso. TLS/hostname siempre verificados; `ca_file` opcional si se acuerda una CA privada.
 
+## Ingreso, confirmación y audios
+
+El primer AGI solicita el CUIL, lo reproduce dígito por dígito con las grabaciones propias y pregunta: «Presione 1 para confirmar o 2 para volver a ingresar». Sólo después de 1 consulta Atenciones. No usa SAY DIGITS ni audios numéricos del sistema.
+
+Copiar las grabaciones a `/var/lib/asterisk/sounds/custom/atenciones/`:
+
+| Archivo | Texto |
+|---|---|
+| `ingrese-cuil.wav` | «A continuación, ingrese su número de CUIL.» |
+| `usted-ingreso.wav` | «Usted ingresó:» |
+| `confirme-cuil.wav` | «Presione 1 para confirmar o 2 para volver a ingresar.» |
+| `digito-0.wav` a `digito-9.wav` | Un dígito por archivo: cero, uno, dos, tres, cuatro, cinco, seis, siete, ocho y nueve. |
+
+Son 13 archivos. Usar WAV PCM de 16 bits, mono, 8000 Hz y extensión `.wav` minúscula ([formato de Asterisk11](https://github.com/asterisk/asterisk/blob/11/formats/format_wav.c)). El nombre visible de una grabación en System Recordings no necesariamente coincide con su archivo físico: esta carpeta y estos nombres eliminan esa ambigüedad.
+
+```sh
+install -d -o asterisk -g asterisk -m 0755 /var/lib/asterisk/sounds/custom/atenciones
+```
+
+Copiar allí los WAV mediante SFTP/SCP, con lectura para asterisk (por ejemplo `root:asterisk`, modo0644). No reemplazar los audios del sistema. Las rutas se pueden cambiar en el `.conf`, relativas a `/var/lib/asterisk/sounds/` y **sin extensión**:
+
+```ini
+[identification]
+max_attempts = 3
+input_timeout = 5
+confirmation_timeout = 5
+request_audio = "custom/atenciones/ingrese-cuil"
+entered_audio = "custom/atenciones/usted-ingreso"
+confirm_audio = "custom/atenciones/confirme-cuil"
+digit_audio_prefix = "custom/atenciones/digito-"
+```
+
+Agregar esta sección también al actualizar una instalación existente; los valores mostrados son los predeterminados. Intentos y tiempos aceptan enteros positivos1..999; tiempos en segundos. `max_attempts` cuenta el primero, no tres reintentos adicionales. Se reinicia por cada ejecución del AGI.
+
+La captura termina automáticamente a los11 dígitos; no hace falta `#`. `#` permite finalizar antes: si se confirma un CUIL corto, la API decide su validez y puede devolver INVALID_CUIL. No se valida padrón ni dígito verificador en la central. Silencio o timeout durante una entrada incompleta, `*`, 2, confirmación distinta de1 o silencio al confirmar consumen un intento y vuelven a solicitar el CUIL. El timeout de entrada es de inactividad entre dígitos; el de confirmación empieza al terminar su audio. Al agotar intentos devuelve INPUT_FAILED, sin consultar la API.
+
+Un archivo faltante/no reproducible, configuración inválida o error de protocolo deja ERROR; si el canal se corta, se detiene sin consultar. Los comandos usados y sus respuestas se contrastaron con [res_agi.c de Asterisk11](https://github.com/asterisk/asterisk/blob/11/res/res_agi.c). Una falla de audio puede terminar la sesión AGI desde Asterisk; ERROR se inicializa antes de reproducir.
+
 ## Configuración de Dynamic Routes
 
-Crear dos rutas. El usuario configura audios, IVR, anuncios y colas.
+Crear dos rutas, con la captura propia del módulo **desactivada**:
 
 | Campo | Ruta de opción1 | Ruta de opción2 |
 |---|---|---|
 | Name | Atenciones - Afiliaciones | Atenciones - Beneficiarios |
-| Get DTMF input | Activado | Activado |
-| Timeout | 5 segundos para ingresar dígitos | 5 segundos para ingresar dígitos |
-| Input Variable | Vacío | Vacío |
-| Result Variable | Vacío | Vacío |
-| Announcement | Audio que solicita CUIL | Audio que solicita CUIL |
+| Get DTMF input | Desactivado | Desactivado |
+| Input Variable / Result Variable | Vacíos | Vacíos |
+| Announcement | None | None |
 | Source type | AGI | AGI |
 | AGI script and parameters | `crm_get_afiliado.agi.php,1` | `crm_get_afiliado.agi.php,2` |
 | AGI result variable | `CRM_ROUTE_KEY` | `CRM_ROUTE_KEY` |
-| Default destination | Queues → CallCenter6000 | Queues → CallCenter6000 |
+| Default destination | El destino elegido para ERROR | El destino elegido para ERROR |
 
-Sin `${...}` en AGI result variable. La captura nativa usa `dtmfinput`; el AGI la lee y limpia. Input Variable vacío evita una copia heredada del CUIL. No pasar CUIL en parámetros del script.
+Sin `${...}` en AGI result variable. El AGI captura los dígitos; no usa `dtmfinput` ni recibe CUIL como argumento. El Timeout de la pantalla Dynamic Routes no controla esta captura; usar el `.conf`. El presupuesto HTTP sigue siendo3 segundos, independiente del ingreso/confirmación.
 
-La implementación pública consultada no ofrece campo de máximo de dígitos: `Read()` termina con `#` o timeout. El audio puede pedir finalizar con `#`; si la versión instalada sí ofrece máximo de dígitos, el usuario puede ajustar esa captura. La validez del CUIL la decide exclusivamente Atenciones. El Timeout de esta pantalla es para DTMF; el timeout HTTP de3 segundos está dentro del AGI.
-
-En AMBAS rutas configurar exactamente:
+En AMBAS rutas configurar:
 
 | Match | Destination |
 |---|---|
@@ -63,9 +97,11 @@ En AMBAS rutas configurar exactamente:
 | `PORTAL` | Announcement → Portal de beneficiarios, seguido del destino acordado |
 | `END_CALL` | Announcement → Mensaje de rechazo → Terminate Call/Hangup |
 | `INVALID_CUIL` | Announcement → Mensaje CUIL inválido → Terminate Call/Hangup |
-| Default destination | Queues → CallCenter6000 |
+| `INPUT_FAILED` | Anuncio/destino que el administrador elija al agotar intentos |
+| `ERROR` | Anuncio/destino que el administrador elija ante falla técnica |
+| Default destination | El mismo destino elegido para ERROR |
 
-No hace falta una entrada ERROR. HTTP no200, timeout, JSON inválido, destino ausente/vacío o tipo inválido devuelven CALL_CENTER. Una clave nueva válida se conserva: si todavía no tiene Match, el Default nativo la envía a CallCenter. No dejar Default en Hangup.
+No se envía automáticamente al CallCenter ante un fallo. INPUT_FAILED es un fallo del ingreso/confirmación; INVALID_CUIL es una decisión recibida del servidor. HTTP no200, timeout, JSON inválido, destino ausente/vacío o tipo inválido devuelven ERROR. Si el script no arranca o se recibe una clave nueva sin Match, se usa Default nativo. La clave nueva válida se devuelve intacta, sin una whitelist en el AGI.
 
 Enlazar opción1 del IVR a la primera ruta y opción2 a la segunda. Opción3 va directamente al anuncio del Portal de Proveedores, sin AGI. Confirmar el audio/URL del Portal de beneficiarios, distinto del Portal de Proveedores. Guardar y aplicar cambios desde PBX.
 
@@ -88,6 +124,6 @@ El segundo AGI se invoca a sí mismo en segundo plano. El POST lleva sólo llama
 
 Suite local de desarrollo: `python3 -m unittest discover -s tests -p test_afiliados_crm_agi.py -v`. Mock externo opcional: `python3 tests/fixtures/mock_atenciones.py --port 8899`; devuelve respuestas enlatadas del nuevo contrato, sin padrón. Sólo para ese mock local puede configurarse `allow_http_loopback=1` y base `http://127.0.0.1:8899/Atenciones`.
 
-En la PBX usar menú aislado, clave y CUIL de testing. Comprobar4 claves, Default, aviso al responder y caída de API. La conectividad/TLS/IP admitida se verifica desde la central; no se probaron endpoints reales desde el entorno de desarrollo. No registrar URL GET completa ni activar trazas AGI/DTMF con CUIL reales.
+En la PBX usar menú aislado, clave y CUIL de testing. Comprobar las4 claves del servidor, INPUT_FAILED, ERROR, Default, confirmación/reingreso, aviso al responder y caída de API. La conectividad/TLS/IP admitida se verifica desde la central; no se probaron endpoints reales desde el entorno de desarrollo. No registrar URL GET completa ni activar trazas AGI/DTMF con CUIL reales.
 
 Campos de Dynamic Routes comprobados contra el [código público de IssabelPBX](https://github.com/IssabelFoundation/issabelPBX/blob/master/dynroute/functions.inc.php). Contrato: [ATENCIONES-CONTRACT.md](ATENCIONES-CONTRACT.md).

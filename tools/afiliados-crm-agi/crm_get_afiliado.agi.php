@@ -16,7 +16,7 @@ function crm_load_config() {
     foreach (array('base_url', 'api_key', 'ca_file', 'allow_http_loopback') as $name) {
         if (isset($connection[$name]) && !is_string($connection[$name])) { return false; }
     }
-    foreach (array('cuil_variable', 'spool_dir') as $name) {
+    foreach (array('spool_dir') as $name) {
         if (isset($runtime[$name]) && !is_string($runtime[$name])) { return false; }
     }
     $base = isset($connection['base_url']) ? rtrim(trim($connection['base_url']), '/') : '';
@@ -28,13 +28,34 @@ function crm_load_config() {
     $loopback = in_array(strtolower($url['host']), array('127.0.0.1', 'localhost', '[::1]', '::1'), true);
     $allowHttp = isset($connection['allow_http_loopback']) && $connection['allow_http_loopback'] === '1';
     if ($url['scheme'] !== 'https' && !($url['scheme'] === 'http' && $loopback && $allowHttp)) { return false; }
-    $variable = isset($runtime['cuil_variable']) ? $runtime['cuil_variable'] : 'dtmfinput';
-    if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]{0,63}$/D', $variable)) { return false; }
     $ca = isset($connection['ca_file']) ? $connection['ca_file'] : '';
     if ($ca !== '' && (!is_file($ca) || !is_readable($ca))) { return false; }
     return array('base_url' => $base, 'api_key' => $key, 'ca_file' => $ca,
-        'cuil_variable' => $variable,
         'spool_dir' => isset($runtime['spool_dir']) ? $runtime['spool_dir'] : '/var/spool/asterisk/afiliados-crm');
+}
+
+function crm_identification_config() {
+    $ini = @parse_ini_file(crm_config_path(), true, INI_SCANNER_RAW);
+    if (!is_array($ini) || (isset($ini['identification']) && !is_array($ini['identification']))) { return false; }
+    $input = isset($ini['identification']) ? $ini['identification'] : array();
+    $config = array('max_attempts' => '3', 'input_timeout' => '5', 'confirmation_timeout' => '5',
+        'request_audio' => 'custom/atenciones/ingrese-cuil',
+        'entered_audio' => 'custom/atenciones/usted-ingreso',
+        'confirm_audio' => 'custom/atenciones/confirme-cuil',
+        'digit_audio_prefix' => 'custom/atenciones/digito-');
+    foreach ($config as $name => $default) {
+        $value = isset($input[$name]) ? $input[$name] : $default;
+        if (!is_string($value)) { return false; }
+        if (in_array($name, array('max_attempts', 'input_timeout', 'confirmation_timeout'), true)) {
+            if (!preg_match('/^[1-9][0-9]{0,2}$/D', $value)) { return false; }
+            $config[$name] = (int) $value;
+        } else {
+            // Relative sound names only; no extension, traversal or AGI syntax.
+            if (!preg_match('~^[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*$~D', $value)) { return false; }
+            $config[$name] = $value;
+        }
+    }
+    return $config;
 }
 
 function crm_log($category) {
@@ -57,10 +78,46 @@ function crm_agi_cmd($command) {
     fwrite(STDOUT, $command . "\n");
     fflush(STDOUT);
     $line = fgets(STDIN, 8192);
-    if ($line !== false && preg_match('/^200 result=(-?[0-9]+)(?: \((.*)\))?\s*$/D', $line, $match)) {
+    if ($line !== false && preg_match('/^200 result=(-?[0-9]+)(?: \((.*)\))?(?: endpos=-?[0-9]+)?\s*$/D', $line, $match)) {
         return array($match[1], isset($match[2]) ? $match[2] : '');
     }
     return array('-1', '');
+}
+
+function crm_input_digit($command) {
+    $reply = crm_agi_cmd($command);
+    $code = (int) $reply[0];
+    if ($code < 0) { throw new Exception('audio_or_channel_failed'); }
+    if ($code === 0) { return ''; }
+    if ($code < 0 || $code > 127 || strpos('0123456789*#', chr($code)) === false) {
+        throw new Exception('unexpected_dtmf_response');
+    }
+    return chr($code);
+}
+
+function crm_confirmed_cuil($config) {
+    for ($attempt = 0; $attempt < $config['max_attempts']; $attempt++) {
+        $digit = crm_input_digit('GET OPTION "' . $config['request_audio'] . '" "0123456789*#" ' . ($config['input_timeout'] * 1000));
+        $cuil = '';
+        while ($digit !== '' && $digit !== '#' && strlen($cuil) < 11) {
+            if ($digit === '*') { $cuil = ''; break; }
+            $cuil .= $digit;
+            if (strlen($cuil) === 11) { break; }
+            $digit = crm_input_digit('WAIT FOR DIGIT ' . ($config['input_timeout'] * 1000));
+        }
+        // A timeout midway is incomplete input. '#' may submit a short value:
+        // its semantic validity still belongs to Atenciones.
+        if ($cuil === '' || $digit === '') { continue; }
+        $reply = crm_agi_cmd('STREAM FILE "' . $config['entered_audio'] . '" ""');
+        if ($reply[0] !== '0') { throw new Exception('audio_or_channel_failed'); }
+        foreach (str_split($cuil) as $number) {
+            $reply = crm_agi_cmd('STREAM FILE "' . $config['digit_audio_prefix'] . $number . '" ""');
+            if ($reply[0] !== '0') { throw new Exception('audio_or_channel_failed'); }
+        }
+        $confirmed = crm_input_digit('GET OPTION "' . $config['confirm_audio'] . '" "0123456789*#" ' . ($config['confirmation_timeout'] * 1000));
+        if ($confirmed === '1') { return $cuil; }
+    }
+    return false;
 }
 
 function crm_agi_get($name) {
@@ -150,7 +207,7 @@ function crm_route_key($body) {
 
 function main_lookup() {
     $env = crm_agi_read_env();
-    crm_agi_set('CRM_ROUTE_KEY', 'CALL_CENTER');
+    crm_agi_set('CRM_ROUTE_KEY', 'ERROR');
     foreach (array('CRM_CUIL', 'CRM_AFILIADO_ID', 'CRM_OBRA', 'CRM_PRESTADORA') as $legacy) { crm_agi_set($legacy, ''); }
     $option = isset($env['agi_arg_1']) ? $env['agi_arg_1'] : '';
     if ($option === '') { $option = crm_agi_get('IVR_DIGIT_PRESSED'); }
@@ -160,15 +217,13 @@ function main_lookup() {
     // Contingency calls retain their notification hook, even without a successful GET.
     crm_prepare_qagi();
     $config = crm_load_config();
-    $variable = $config === false ? 'dtmfinput' : $config['cuil_variable'];
-    $input = crm_agi_get($variable);
-    crm_agi_set($variable, '');
-    if ($config === false) { crm_log('configuration_unavailable'); return; }
-    // Validation/checksum and registration of invalid or empty CUIL belong to the API.
-    $cuil = str_replace(array(' ', '-', "\t", "\r", "\n"), '', $input);
+    $identification = crm_identification_config();
+    if ($config === false || $identification === false) { crm_log('configuration_unavailable'); return; }
+    $cuil = crm_confirmed_cuil($identification);
+    if ($cuil === false) { crm_agi_set('CRM_ROUTE_KEY', 'INPUT_FAILED'); return; }
     $response = crm_http($config, 'GET', '/api/central/preatendedor',
         array('opcion' => $option, 'cuil' => $cuil, 'llamada' => $callId));
-    unset($input, $cuil);
+    unset($cuil);
     if (!$response['ok'] || $response['status'] !== 200) { crm_log('lookup_http_failed'); return; }
     $destination = crm_route_key($response['body']);
     unset($response);
