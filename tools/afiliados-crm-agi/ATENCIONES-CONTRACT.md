@@ -58,7 +58,7 @@ Dynamic Routes mapea `Osde` a la cola de Osde, otros nombres a sus colas, y las 
 
 Formulario `application/x-www-form-urlencoded`: sólo `llamada` e `interno` URL-encoded. Misma cabecera `X-Api-Key`. `interno` es string de 1–10 dígitos; Atenciones resuelve la operadora mediante “Mi interno”. No se necesita mapa agente/usuario CRM.
 
-HTTP 200 devuelve `{"resultado":"OK"}`, `SIN_VALIDACION` o `SIN_OPERADOR`. Todos continúan igual; HTTP/red/JSON fallidos tampoco cambian la llamada. Worker de un uso fuera del AGI, sin reintentos ni entrega garantizada. Job privado sólo con llamada/interno, consumido antes del POST. El AGI no espera la respuesta remota.
+HTTP 200 devuelve `{"resultado":"OK"}`, `SIN_VALIDACION` o `SIN_OPERADOR`. Todos continúan igual; HTTP/red/JSON fallidos tampoco cambian la llamada. El segundo AGI se invoca a sí mismo con --send fuera de la llamada, sin archivo worker separado, reintentos ni entrega garantizada. Job privado sólo con llamada/interno, consumido antes del POST. El AGI no espera la respuesta remota.
 
 ## Correlación y cola
 
@@ -75,3 +75,7 @@ No exportar CUIL, provincia, referencias o JSON remoto a jobs, CDR o diagnóstic
 Pruebas automáticas: procesos PHP reales por stdin/stdout AGI y servidor HTTP local; reglas, contrato, errores, timeout, correlación, interfaces, POST asíncrono y ausencia de comandos de control de llamadas. No acreditan instalación PBX ni integración real.
 
 Pendiente de laboratorio: URL/clave de testing, certificado/IP de salida habilitada, audio/URL del Portal, destinos nativos acordados, CUIL ficticios del proveedor, ejecutar menú aislado y confirmar pantalla de la operadora. No se promueve producción.
+
+## Instalación mínima
+
+Sólo dos archivos PHP en agi-bin: crm_get_afiliado.agi.php y crm_set_atencion.agi.php, más /etc/asterisk/afiliados-crm.conf con URL/clave. Ambos son autocontenidos. El modo de envío en segundo plano pertenece al segundo AGI y no lee stdin AGI. No common.php, crm_worker.php, paquete de instalación ni servicio permanente. Mock y pruebas quedan bajo tests/, fuera de la instalación.

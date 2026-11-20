@@ -101,10 +101,10 @@ class AtencionesAgi(unittest.TestCase):
                              (self.server.server_port, self.spool))
         self.conf.chmod(0o600)
 
-    def agi(self, name, variables=None, option='1', uniqueid='caller.123', timeout=8, php_args=()):
+    def agi(self, name, variables=None, option='1', uniqueid='caller.123', timeout=8, php_args=(), script_dir=None):
         variables = dict(variables or {})
         env = dict(os.environ, AFILIADOS_CRM_CONF=str(self.conf))
-        process = subprocess.Popen([PHP] + list(php_args) + [str(ROOT / name), option], stdin=subprocess.PIPE,
+        process = subprocess.Popen([PHP] + list(php_args) + [str((script_dir or ROOT) / name), option], stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                    text=True, env=env)
         self.addCleanup(lambda: process.kill() if process.poll() is None else None)
@@ -149,6 +149,22 @@ class AtencionesAgi(unittest.TestCase):
         values = dict(dtmfinput=cuil)
         values.update(variables or {})
         return self.agi('crm_get_afiliado.agi.php', values, option, uniqueid)
+
+    def test_two_agi_files_and_the_local_config_are_sufficient(self):
+        installed = self.directory / 'agi-bin'
+        installed.mkdir()
+        for name in ('crm_get_afiliado.agi.php', 'crm_set_atencion.agi.php'):
+            shutil.copy2(ROOT / name, installed / name)
+        values, _, _ = self.agi('crm_get_afiliado.agi.php', dict(dtmfinput='20000000001'),
+                                option='2', script_dir=installed)
+        self.assertEqual(values['CRM_ROUTE_KEY'], 'Prestadora de prueba')
+        values['MEMBERINTERFACE'] = 'Local/1001@from-queue/n'
+        self.agi('crm_set_atencion.agi.php', values, script_dir=installed, timeout=1)
+        self.assertTrue(self.state['post_finished'].wait(3))
+        post = next(r for r in self.state['requests'] if r['method'] == 'POST')
+        self.assertEqual(parse_qs(post['body'].decode()),
+                         dict(llamada=['caller.123'], interno=['1001']))
+        self.assertEqual(list(self.spool.iterdir()), [])
 
     def test_lookup_resolves_a_value_and_uses_the_real_api_contract(self):
         values, commands, stderr = self.lookup()
@@ -422,7 +438,7 @@ class AtencionesAgi(unittest.TestCase):
         malformed.write_text(json.dumps(dict(llamada='original.1', interno='1001', cuil='forbidden')))
         malformed.chmod(0o600)
         for job in (outside, linked, malformed):
-            result = subprocess.run([PHP, str(ROOT / 'afiliados-crm/crm_worker.php'), str(job)],
+            result = subprocess.run([PHP, str(ROOT / 'crm_set_atencion.agi.php'), '--send', str(job)],
                                     env=env, capture_output=True, text=True, timeout=2)
             self.assertEqual(result.returncode, 0)
             self.assertNotIn('forbidden', result.stderr)
@@ -431,7 +447,7 @@ class AtencionesAgi(unittest.TestCase):
         self.assertEqual(self.state['requests'], [])
 
     def test_documented_mock_fixtures_work_with_the_actual_agi(self):
-        spec = importlib.util.spec_from_file_location('atenciones_mock', ROOT / 'mock_crm_server.py')
+        spec = importlib.util.spec_from_file_location('atenciones_mock', Path(__file__).parent / 'fixtures/mock_atenciones.py')
         mock = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mock)
         self.server.RequestHandlerClass = mock.make_handler('test-secret')
