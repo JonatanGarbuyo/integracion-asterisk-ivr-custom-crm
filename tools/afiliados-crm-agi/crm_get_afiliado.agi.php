@@ -139,45 +139,22 @@ function crm_http($config, $method, $path, $parameters) {
                  'body' => $tooLarge ? '' : $body);
 }
 
-function crm_preatendedor_data($body) {
-    $object = json_decode($body);
-    if (!is_object($object)) { return false; }
-    $data = get_object_vars($object);
-    foreach (array('cuilValido', 'esTitular', 'activo', 'esProveedor') as $field) {
-        if (!array_key_exists($field, $data) || !is_bool($data[$field])) { return false; }
-    }
-    foreach (array('prestadora', 'provincia') as $field) {
-        if (!array_key_exists($field, $data) ||
-            ($data[$field] !== null && (!is_string($data[$field]) || strlen($data[$field]) > 512 ||
-                preg_match('/[\x00-\x1f\x7f]/', $data[$field])))) { return false; }
-    }
-    if (!isset($data['referencias']) || !is_array($data['referencias'])) { return false; }
-    $index = 0;
-    foreach ($data['referencias'] as $key => $reference) {
-        if ($key !== $index++ || !is_string($reference)) { return false; }
-    }
-    return $data;
-}
-
-function crm_decision($option, $data) {
-    if (!$data['cuilValido']) { return 'INVALID_CUIL'; }
-    if ($option === '1') {
-        if ($data['esProveedor'] || ($data['esTitular'] && $data['activo'])) { return 'END_CALL'; }
-        return 'CALL_CENTER';
-    }
-    if (!$data['esTitular'] || !$data['activo']) { return 'END_CALL'; }
-    return count($data['referencias']) > 0 ? 'PORTAL' : 'CALL_CENTER';
+function crm_route_key($body) {
+    $data = json_decode($body);
+    if (!is_object($data) || !isset($data->destino) || !is_string($data->destino) ||
+        trim($data->destino) === '' || strlen($data->destino) > 512 ||
+        preg_match('/[\x00-\x1f\x7f]/', $data->destino)) { return false; }
+    // No fixed list: new server decisions only require a new Dynamic Routes match.
+    return $data->destino;
 }
 
 function main_lookup() {
     $env = crm_agi_read_env();
     crm_agi_set('CRM_ROUTE_KEY', 'CALL_CENTER');
-    crm_agi_set('CRM_PRESTADORA', '');
-    foreach (array('CRM_CUIL', 'CRM_AFILIADO_ID', 'CRM_OBRA') as $legacy) { crm_agi_set($legacy, ''); }
+    foreach (array('CRM_CUIL', 'CRM_AFILIADO_ID', 'CRM_OBRA', 'CRM_PRESTADORA') as $legacy) { crm_agi_set($legacy, ''); }
     $option = isset($env['agi_arg_1']) ? $env['agi_arg_1'] : '';
     if ($option === '') { $option = crm_agi_get('IVR_DIGIT_PRESSED'); }
-    if ($option === '3') { crm_agi_set('CRM_ROUTE_KEY', 'OPTION_3'); return; }
-    if ($option !== '1' && $option !== '2') { crm_log('invalid_menu_option'); return; }
+    if (!preg_match('/^[0-9]$/D', $option)) { crm_log('invalid_menu_option'); return; }
     $callId = crm_call_id($env);
     if ($callId === '') { crm_log('invalid_original_call_id'); return; }
     // Contingency calls retain their notification hook, even without a successful GET.
@@ -193,16 +170,10 @@ function main_lookup() {
         array('opcion' => $option, 'cuil' => $cuil, 'llamada' => $callId));
     unset($input, $cuil);
     if (!$response['ok'] || $response['status'] !== 200) { crm_log('lookup_http_failed'); return; }
-    $data = crm_preatendedor_data($response['body']);
+    $destination = crm_route_key($response['body']);
     unset($response);
-    if ($data === false) { crm_log('lookup_invalid_response'); return; }
-    $decision = crm_decision($option, $data);
-    $prestadora = $data['cuilValido'] && $data['prestadora'] !== null ? $data['prestadora'] : '';
-    unset($data); // No medical fields enter AGI/channel/job output.
-    // One Dynamic Routes value: policies take precedence over provider-specific attention.
-    if ($decision === 'CALL_CENTER' && $prestadora !== '') { $decision = $prestadora; }
-    crm_agi_set('CRM_PRESTADORA', $prestadora);
-    crm_agi_set('CRM_ROUTE_KEY', $decision);
+    if ($destination === false) { crm_log('lookup_invalid_response'); return; }
+    crm_agi_set('CRM_ROUTE_KEY', $destination);
 }
 
 try { main_lookup(); } catch (Exception $error) { crm_log('lookup_failed'); }

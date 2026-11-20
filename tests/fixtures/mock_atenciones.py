@@ -11,30 +11,18 @@ from socketserver import ThreadingMixIn
 from urllib.parse import parse_qs, urlsplit
 
 
-def affiliate(**changes):
-    value = dict(cuilValido=True, esTitular=False, activo=False,
-                 prestadora=None, provincia=None, referencias=[], esProveedor=False)
-    value.update(changes)
-    return value
-
-
-DIRECTORY = {
-    '20000000001': affiliate(esTitular=True, activo=True, prestadora='Prestadora A'),
-    '20000000028': affiliate(esTitular=True, activo=True, prestadora='Prestadora B',
-                             referencias=['REFERENCIA_FICTICIA']),
-    '20000000036': affiliate(esTitular=True, prestadora='Prestadora A'),
-    '20000000044': affiliate(prestadora='Prestadora B'),
-    '30000000007': affiliate(esProveedor=True),
+# Canned responses of the remote server; no affiliate record is returned.
+ROUTES = {
+    ('1', '20000000001'): 'END_CALL',
+    ('2', '20000000001'): 'CALL_CENTER',
+    ('2', '20000000028'): 'PORTAL',
+    ('1', '20000000036'): 'CALL_CENTER',
+    ('2', '20000000036'): 'END_CALL',
+    ('2', '20000000044'): 'END_CALL',
+    ('1', '30000000007'): 'END_CALL',
+    ('1', '20000000052'): 'CALL_CENTER',
+    ('2', '20000000060'): 'ATENCION_ESPECIAL',
 }
-
-
-def valid_cuil(value):
-    if not re.fullmatch(r'[0-9]{11}', value):
-        return False
-    total = sum(int(digit) * weight for digit, weight in
-                zip(value[:10], (5, 4, 3, 2, 7, 6, 5, 4, 3, 2)))
-    remainder = 11 - total % 11
-    return remainder != 10 and int(value[-1]) == (0 if remainder == 11 else remainder)
 
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
@@ -83,18 +71,18 @@ def make_handler(api_key, get_delay=0, post_delay=0, get_status=200, post_status
             query = parse_qs(parsed.query, keep_blank_values=True)
             option = query.get('opcion', [''])[0]
             call = query.get('llamada', [''])[0]
-            if option not in ('1', '2') or not self.call_id(call):
+            if not re.fullmatch(r'[0-9]', option) or not self.call_id(call):
                 self.reply(400, dict(mensaje='Parametros invalidos'))
                 return
             cuil = re.sub(r'[\s-]', '', query.get('cuil', [''])[0])
-            result = (DIRECTORY.get(cuil, affiliate()) if valid_cuil(cuil)
-                      else affiliate(cuilValido=False))
+            destination = ROUTES.get((option, cuil), 'INVALID_CUIL') if option in ('1', '2') else 'CALL_CENTER'
+            result = dict(destino=destination)
             time.sleep(get_delay)
             if get_status != 200:
                 self.reply(get_status)
                 return
             with lock:
-                validations[call] = result  # Ephemeral, no CUIL or durable logs.
+                validations[call] = True  # Ephemeral correlation only, no CUIL or durable logs.
             self.reply(200, result)
 
         def do_POST(self):

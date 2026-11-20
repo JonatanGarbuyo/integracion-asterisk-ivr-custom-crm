@@ -1,81 +1,51 @@
-# Contrato Atenciones y decisiones
+# Atenciones — contrato recibido el20/11/2026
 
-Fuente: `central.md` entregado por el desarrollador de Atenciones el 19/11/2026 y aclaración posterior del usuario: **evaluar las reglas devuelve un valor; Dynamic Routes ejecuta el destino**. Sustituye el prototipo getAfiliadoByCuil/setAtencion y la interpretación anterior de devolver únicamente prestadora.
+Fuente: documento central.md del proveedor, confirmado e implementado en testing. **Atenciones decide; Dynamic Routes ejecuta el destino.** Sustituye completamente la respuesta anterior con siete campos de afiliado y toda regla local por titularidad, baja, referencias, proveedor o prestadora.
 
-## Transporte
+## Conexión
 
-Base por ambiente: `https://<servidor>/Atenciones`; conservar `/Atenciones`. Ambos endpoints usan `X-Api-Key`. Claves y URL reales se configuran fuera de Git. TLS y hostname verificados, sin redirects; CA privada opcional. HTTP sólo se permite explícitamente para loopback del mock. Conexión máxima 1 segundo y presupuesto HTTP total 3 segundos; cuerpo máximo 16 KiB.
+- Testing: `https://testing.ospaca.com/Atenciones`.
+- Producción: `https://sistema.ospaca.com/Atenciones`.
+- Ambos endpoints: header `X-Api-Key`; claves por canal aparte y fuera de Git.
+- Proveedor informa IP admitidas192.168.200.10 y192.168.201.10. Conectividad/origen efectivo/TLS deben comprobarse desde la central.
+- Peer y hostname TLS verificados. CA privada opcional; sin redirects. Timeout de conexión1s, HTTP total3s y cuerpo máximo16KiB.
 
 ## GET /api/central/preatendedor
 
-Query: `opcion` (1/2), `cuil` (opcional), `llamada` (UNIQUEID original, máximo 40 caracteres). El AGI elimina espacios y guiones del CUIL, pero consulta incluso si está vacío o es inválido: checksum y registro pertenecen al servidor. La opción 3 se configura directamente en el IVR y no consulta.
+Query: `opcion` (un dígito), `cuil` (opcional, normalizar espacios/guiones) y `llamada` (UNIQUEID original≤40). La API valida CUIL, incluso cuando falta o es inválido. El mismo CUIL puede tener decisiones distintas por opción. El IVR manda opción3 directamente a su anuncio; el AGI genérico admite cualquier dígito si se lo invoca y deja la decisión al servidor.
 
-Respuesta HTTP 200 con todos los campos:
+HTTP200:
 
 ```json
-{
-  "cuilValido": true,
-  "esTitular": true,
-  "activo": true,
-  "prestadora": "Prestadora de prueba",
-  "provincia": "Provincia ficticia",
-  "referencias": [],
-  "esProveedor": false
-}
+{"destino":"CALL_CENTER"}
 ```
 
-`cuilValido`, `esTitular`, `activo`, `esProveedor`: booleanos. `prestadora`, `provincia`: string o null. `referencias`: lista de strings. No se exige nombre ni id del afiliado. Referencias se usa transitoriamente para resolver si la lista está vacía; sus valores no se exportan.
+Claves iniciales: CALL_CENTER, PORTAL, END_CALL, INVALID_CUIL. El AGI no contiene esa lista como validación ni interpreta negocio: acepta un destino string no vacío, hasta512 bytes y sin caracteres de control, conserva su valor y lo escribe en `CRM_ROUTE_KEY`.
 
-## Reglas → CRM_ROUTE_KEY
+Una clave futura válida se devuelve intacta; Dynamic Routes decide si tiene Match o usa Default. No se devuelven prestadoras ni datos del afiliado. Las variables antiguas de afiliación se limpian por compatibilidad, sin rellenarlas.
 
-Evaluación en el orden de cada opción:
+Fallo HTTP/red/timeout, JSON ilegible/no objeto, destino ausente/vacío/null/no string o técnicamente inválido → CALL_CENTER. No existe un resultado ERROR propio. Configurar también Default a CallCenter, por si AGI no llega a ejecutarse o la clave aún no está mapeada.
 
-| Opción | Condición | Decisión lógica |
-|---|---|---|
-| 1 | CUIL inválido | `INVALID_CUIL` |
-| 1 | Proveedor | `END_CALL` |
-| 1 | Titular activo | `END_CALL` |
-| 1 | Resto | `CALL_CENTER` |
-| 2 | CUIL inválido | `INVALID_CUIL` |
-| 2 | No es titular activo | `END_CALL` |
-| 2 | Referencias no vacías | `PORTAL` |
-| 2 | Referencias vacías | `CALL_CENTER` |
-| 1/2 | Error de red, timeout, HTTP distinto de 200, JSON/schema inválido | `CALL_CENTER` |
-
-La opción 2 rechaza a un titular dado de baja; el usuario lo confirmó. No añade un filtro por proveedor. Un error técnico nunca se transforma en CUIL inválido. La opción 3 devuelve defensivamente `OPTION_3` sin HTTP; se configura su anuncio y corte directamente en el IVR.
-
-Para producir la única variable de selección `CRM_ROUTE_KEY`:
-
-1. Si la decisión lógica es `INVALID_CUIL`, `END_CALL` o `PORTAL`, devolver esa clave. Tiene prioridad sobre la prestadora.
-2. Si la decisión lógica permite atención (`CALL_CENTER`) y hay prestadora no vacía, devolver su nombre literal: por ejemplo `Osde`. Sin prefijo, aliases ni cambios de mayúsculas, espacios o acentos.
-3. Si corresponde atender pero no hay prestadora, o falla la consulta, devolver `CALL_CENTER`.
-
-Dynamic Routes mapea `Osde` a la cola de Osde, otros nombres a sus colas, y las claves especiales a anuncios/corte o cola general. Default es cola general para nombres no configurados. El AGI no contiene el mapa ni ejecuta destinos.
-
-`CRM_PRESTADORA` sigue disponible como dato auxiliar literal, o vacío ante CUIL inválido, null o fallo; no es el selector principal porque omitiría las reglas. El IVR tiene dos Dynamic Routes con `crm_get_afiliado.agi.php,1` y `crm_get_afiliado.agi.php,2`, respectivamente. Ambos seleccionan `CRM_ROUTE_KEY` y reutilizan el mismo script.
+Errores remotos:400 parámetros,401 clave,403 IP,503 falta clave del servidor y otros5xx. No interpretarlos como decisiones de afiliación.
 
 ## POST /api/central/llamada-atendida
 
-Formulario `application/x-www-form-urlencoded`: sólo `llamada` e `interno` URL-encoded. Misma cabecera `X-Api-Key`. `interno` es string de 1–10 dígitos; Atenciones resuelve la operadora mediante “Mi interno”. No se necesita mapa agente/usuario CRM.
+`X-Api-Key`, `Content-Type: application/x-www-form-urlencoded`. Sólo `llamada` (mismo id original≤40) e `interno` (string1–10 dígitos). Atenciones resuelve operadora mediante “Mi interno”.
 
-HTTP 200 devuelve `{"resultado":"OK"}`, `SIN_VALIDACION` o `SIN_OPERADOR`. Todos continúan igual; HTTP/red/JSON fallidos tampoco cambian la llamada. El segundo AGI se invoca a sí mismo con --send fuera de la llamada, sin archivo worker separado, reintentos ni entrega garantizada. Job privado sólo con llamada/interno, consumido antes del POST. El AGI no espera la respuesta remota.
+HTTP200: `{"resultado":"OK"}`, SIN_VALIDACION o SIN_OPERADOR. No cambia la conversación por ningún resultado, HTTP fallido o JSON inválido. El aviso sale fuera del camino síncrono de Queue, mediante el modo --send del mismo segundo AGI. Temporal privado sólo llamada/interno, consumido una vez antes del POST; sin retries ni entrega garantizada.
 
 ## Correlación y cola
 
-`CRM_CALL_ID` se captura una vez desde el UNIQUEID del llamante y se hereda mediante `__CRM_CALL_ID`. Se reutiliza en reintentos y canales Local. Nunca se trunca; el hook no toma como reemplazo el UNIQUEID del agente. Si se entra por un canal Local previo a la consulta, el dialplan de entrada debe preservar ese UNIQUEID original antes de crear la nueva pierna.
+`__CRM_CALL_ID` se toma una vez del UNIQUEID del llamante y se reutiliza en GET/reintentos/POST. No truncar ni sustituir por id del miembro/Local/worker. Si ya hay canales Local antes de consultar, el dialplan de entrada debe preservar el id del llamante antes de crearlos.
 
-Se prepara `__QAGI=crm_set_atencion.agi.php` antes de consultar, incluso para la cola de contingencia si GET falla. Hooks QAGI/VQ_AGI ajenos se preservan y se señala `CRM_QAGI_CONFLICT=1`; resolver la composición antes de activar.
+QAGI se prepara antes de GET, también para contingencia. El dialplan real de cola6000 usa QAGI como sexto argumento de Queue. QAGI ejecuta sobre el llamante al responder, no es un hook pre-dial. `setinterfacevar=yes` habilita MEMBERINTERFACE; Local/1001@from-queue/n produce1001. Se preservan hooks QAGI/VQ_AGI ajenos y se marca conflicto para componerlos explícitamente.
 
-Instalación verificada por el usuario: Asterisk 11.25.3, IssabelPBX 2.11.0-48, miembros dinámicos `Local/<interno>@from-queue/n`, sin agentes clásicos. El dialplan pasa QAGI al sexto argumento de Queue. Con `setinterfacevar=yes`, el hook usa `MEMBERINTERFACE` para extraer ese interno. También se aceptan interfaces numéricas SIP/PJSIP; no nombres de canal arbitrarios ni Agent antiguos.
+## Entrega, privacidad y pruebas
 
-## Privacidad y aceptación
+Dos AGI autocontenidos más un .conf local. Sin paquete, common.php, tercer worker, addon, Composer, AMI permanente o Python en la PBX. Mock/test bajo tests/, fuera de instalación.
 
-No exportar CUIL, provincia, referencias o JSON remoto a jobs, CDR o diagnósticos. El CUIL de captura se limpia; las únicas salidas de consulta son decisión, prestadora y metadatos técnicos de correlación/hook. Diagnósticos de categorías fijas; sin URL completa, clave ni cuerpo remoto. Trazas AGI/DTMF de Asterisk pueden mostrar la entrada: usar datos ficticios al depurar.
+No registrar CUIL/URL completa/clave/cuerpo remoto en logs o CDR; no guardar datos del afiliado en jobs. Diagnósticos de categorías fijas. Las trazas AGI/DTMF de Asterisk pueden exponer entrada si se habilitan: sólo datos ficticios al depurar.
 
-Pruebas automáticas: procesos PHP reales por stdin/stdout AGI y servidor HTTP local; reglas, contrato, errores, timeout, correlación, interfaces, POST asíncrono y ausencia de comandos de control de llamadas. No acreditan instalación PBX ni integración real.
+Pruebas locales por stdin/stdout AGI y HTTP real simulado: sólo destino,4 claves iniciales y futuras, ausencia de reglas, errores/tipos/timeout/TLS, correlación, interno, dos archivos suficientes y POST no bloqueante. Sin Actions/OpenCode por decisión del usuario. No equivalen a aceptación en PBX/CRM real.
 
-Pendiente de laboratorio: URL/clave de testing, certificado/IP de salida habilitada, audio/URL del Portal, destinos nativos acordados, CUIL ficticios del proveedor, ejecutar menú aislado y confirmar pantalla de la operadora. No se promueve producción.
-
-## Instalación mínima
-
-Sólo dos archivos PHP en agi-bin: crm_get_afiliado.agi.php y crm_set_atencion.agi.php, más /etc/asterisk/afiliados-crm.conf con URL/clave. Ambos son autocontenidos. El modo de envío en segundo plano pertenece al segundo AGI y no lee stdin AGI. No common.php, crm_worker.php, paquete de instalación ni servicio permanente. Mock y pruebas quedan bajo tests/, fuera de la instalación.
+Usuario configura audios, IVR y colas. Queda su prueba de menú aislado contra testing y aviso de la operadora; URL/audio del Portal de beneficiarios la confirma CallCenter. No hubo instalación, merge o deploy desde este entorno.

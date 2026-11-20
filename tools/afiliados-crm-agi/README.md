@@ -1,16 +1,12 @@
 # Dos AGI para Dynamic Routes y Atenciones
 
-En Issabel se instalan sólo:
+Instalar sólo los dos PHP en `/var/lib/asterisk/agi-bin/` y un `.conf` local. PHP CLI5.4+ con cURL/JSON; sin addon, paquete, Composer, Python en la PBX ni listener AMI. CI y OpenCode permanecen desactivados.
 
-- `crm_get_afiliado.agi.php`: consulta CUIL y devuelve el valor de enrutamiento.
-- `crm_set_atencion.agi.php`: notifica el interno que atendió, en segundo plano.
-- `/etc/asterisk/afiliados-crm.conf`: URL y clave del CRM.
-
-PHP CLI 5.4+ con cURL y JSON. Sin addon, Composer, Python en la PBX, auxiliares PHP ni listener AMI. Actions y OpenCode permanecen suspendidos.
+Atenciones responde `{"destino":"CALL_CENTER"}`. El AGI copia `destino` a `CRM_ROUTE_KEY`, sin reglas de afiliación ni lista fija de claves. Una clave nueva se configura en Dynamic Routes sin modificar el script. No se calcula prestadora, titularidad, actividad, referencias o proveedor.
 
 ## Descargar e instalar
 
-Como root, descargar directamente del repositorio, sin Git ni paquete:
+Como root, desde el repositorio y sin Git:
 
 ```sh
 mkdir -p /tmp/afiliados-crm-agi
@@ -28,56 +24,70 @@ if [ ! -e /etc/asterisk/afiliados-crm.conf ]; then
 fi
 ```
 
-Completar `base_url` (incluye `/Atenciones`) y `api_key` en el `.conf` local. No sobrescribirlo al actualizar. `curl` y `json` deben aparecer en `php -m`; el PHP CLI debe tener `exec` habilitado para despachar el aviso. TLS y hostname se verifican; `ca_file` es opcional si el servidor usa una CA privada.
+Editar `/etc/asterisk/afiliados-crm.conf`, también si ya existe de una prueba anterior:
 
-Los auxiliares `agi-bin/afiliados-crm/common.php` y `crm_worker.php` de la entrega anterior ya no se usan. Los nuevos scripts son independientes y no requieren esa carpeta.
+```ini
+[atenciones]
+base_url = "https://testing.ospaca.com/Atenciones"
+api_key = "CLAVE_DE_TESTING"
+```
 
-## IVR y Dynamic Routes
+La base de producción es `https://sistema.ospaca.com/Atenciones`; para el laboratorio usar testing y su clave correspondiente. No guardar claves reales en Git. `curl` y `json` deben aparecer en `php -m`; `exec` debe estar habilitado para despachar el aviso. TLS/hostname siempre verificados; `ca_file` opcional si se acuerda una CA privada.
 
-Crear dos Dynamic Routes y enlazarlos desde el IVR:
+## Configuración de Dynamic Routes
 
-| Opción IVR | AGI script and parameters |
+Crear dos rutas. El usuario configura audios, IVR, anuncios y colas.
+
+| Campo | Ruta de opción1 | Ruta de opción2 |
+|---|---|---|
+| Name | Atenciones - Afiliaciones | Atenciones - Beneficiarios |
+| Get DTMF input | Activado | Activado |
+| Timeout | 5 segundos para ingresar dígitos | 5 segundos para ingresar dígitos |
+| Input Variable | Vacío | Vacío |
+| Result Variable | Vacío | Vacío |
+| Announcement | Audio que solicita CUIL | Audio que solicita CUIL |
+| Source type | AGI | AGI |
+| AGI script and parameters | `crm_get_afiliado.agi.php,1` | `crm_get_afiliado.agi.php,2` |
+| AGI result variable | `CRM_ROUTE_KEY` | `CRM_ROUTE_KEY` |
+| Default destination | Queues → CallCenter6000 | Queues → CallCenter6000 |
+
+Sin `${...}` en AGI result variable. La captura nativa usa `dtmfinput`; el AGI la lee y limpia. Input Variable vacío evita una copia heredada del CUIL. No pasar CUIL en parámetros del script.
+
+La implementación pública consultada no ofrece campo de máximo de dígitos: `Read()` termina con `#` o timeout. El audio puede pedir finalizar con `#`; si la versión instalada sí ofrece máximo de dígitos, el usuario puede ajustar esa captura. La validez del CUIL la decide exclusivamente Atenciones. El Timeout de esta pantalla es para DTMF; el timeout HTTP de3 segundos está dentro del AGI.
+
+En AMBAS rutas configurar exactamente:
+
+| Match | Destination |
 |---|---|
-| 1 — Quiero afiliarme | `crm_get_afiliado.agi.php,1` |
-| 2 — Soy beneficiario | `crm_get_afiliado.agi.php,2` |
+| `CALL_CENTER` | Queues → CallCenter6000 |
+| `PORTAL` | Announcement → Portal de beneficiarios, seguido del destino acordado |
+| `END_CALL` | Announcement → Mensaje de rechazo → Terminate Call/Hangup |
+| `INVALID_CUIL` | Announcement → Mensaje CUIL inválido → Terminate Call/Hangup |
+| Default destination | Queues → CallCenter6000 |
 
-En ambos: activar captura DTMF, seleccionar el audio que pide CUIL, máximo11 dígitos, Input Variable vacío, Source type AGI y **AGI Result Variable `CRM_ROUTE_KEY`**. La variable de captura por defecto es `dtmfinput` y el AGI la limpia después de leerla.
+No hace falta una entrada ERROR. HTTP no200, timeout, JSON inválido, destino ausente/vacío o tipo inválido devuelven CALL_CENTER. Una clave nueva válida se conserva: si todavía no tiene Match, el Default nativo la envía a CallCenter. No dejar Default en Hangup.
 
-Configurar el mapa nativo en cada Dynamic Route:
+Enlazar opción1 del IVR a la primera ruta y opción2 a la segunda. Opción3 va directamente al anuncio del Portal de Proveedores, sin AGI. Confirmar el audio/URL del Portal de beneficiarios, distinto del Portal de Proveedores. Guardar y aplicar cambios desde PBX.
 
-| Match | Destino ilustrativo |
-|---|---|
-| `Osde` | Cola de Osde |
-| Otra prestadora, nombre exacto | Su cola |
-| `CALL_CENTER` | Cola general |
-| `PORTAL` | Anuncio Portal → colgar |
-| `END_CALL` | Anuncio de rechazo → colgar |
-| `INVALID_CUIL` | Anuncio de rechazo → colgar |
-| Default | Cola general |
+## Aviso al atender
 
-El AGI aplica primero las reglas: Portal/rechazo tienen prioridad. Si corresponde atender, devuelve la prestadora literal, sin prefijo ni normalización. Si falta prestadora o falla la API, devuelve `CALL_CENTER`. Opción2 rechaza al titular de baja, confirmado. Los scripts no conocen colas ni ejecutan Goto/Queue/Hangup.
+El primer AGI conserva `__CRM_CALL_ID` con el UNIQUEID original y prepara `__QAGI=crm_set_atencion.agi.php`, incluso si GET falla. El dialplan de cola6000 proporcionado por el usuario ya pasa QAGI a Queue. No hay que agregar el segundo AGI como destino ni ejecutarlo al entrar a la cola.
 
-Opción3: anuncio del Portal de Proveedores → colgar, directamente desde IVR. Deshabilitar Direct Dial y configurar el timeout sin selección a colgar. Confirmar la URL del Portal antes de grabar el anuncio.
-
-## Aviso al atender la cola
-
-El primer AGI conserva el UNIQUEID original en `__CRM_CALL_ID` y prepara `__QAGI=crm_set_atencion.agi.php`, incluso si GET falla. El dialplan de cola6000 del cliente ya pasa QAGI a Queue. Preserva QAGI/VQ_AGI ajenos; si hay conflicto, marca `CRM_QAGI_CONFLICT=1` y debe componerse el hook antes de activar el piloto.
-
-Confirmar que `queues_post_custom.conf` se incluye después de `queues_additional.conf`. Añadir en `/etc/asterisk/queues_post_custom.conf` para cada cola usada:
+Para disponer de `MEMBERINTERFACE`, agregar a `/etc/asterisk/queues_post_custom.conf`, después de verificar que su include está después de `queues_additional.conf`:
 
 ```ini
 [6000](+)
 setinterfacevar=yes
 ```
 
-Aplicar los cambios desde PBX y recargar la configuración de colas. `MEMBERINTERFACE=Local/1001@from-queue/n` produce interno1001. La operadora carga ese número en “Mi interno” de Atenciones.
+Recargar configuración de colas, por ejemplo `asterisk -rx 'module reload app_queue.so'`, y aplicar cambios desde PBX. Un miembro `Local/1001@from-queue/n` produce interno1001; la operadora carga ese número en Atenciones, en “Mi interno”. QAGI usa el canal llamante; no necesita reemplazar el id con el del miembro.
 
-El segundo AGI se ejecuta a sí mismo en segundo plano y vuelve a Queue sin esperar HTTP. Usa un archivo temporal privado que contiene únicamente llamada/interno y se consume una sola vez; sin retries ni garantía de entrega. No hay un tercer script, servicio o proceso permanente.
+El segundo AGI se invoca a sí mismo en segundo plano. El POST lleva sólo llamada/interno, sin CUIL ni datos del afiliado; los tres resultados200 y los fallos no afectan la conversación. Conserva un temporal privado de un uso, sin retries/garantía de entrega. Si existe QAGI/VQ_AGI ajeno, se preserva y se señala CRM_QAGI_CONFLICT=1: componer esa integración antes del piloto.
 
-## Pruebas
+## Verificación local y laboratorio
 
-Pruebas locales de desarrollo, fuera de la PBX: `python3 -m unittest discover -s tests -p test_afiliados_crm_agi.py -v`. Mock opcional: `python3 tests/fixtures/mock_atenciones.py --port 8899`. Para ese mock HTTP exclusivamente local se permite agregar `allow_http_loopback=1` a `[atenciones]`.
+Suite local de desarrollo: `python3 -m unittest discover -s tests -p test_afiliados_crm_agi.py -v`. Mock externo opcional: `python3 tests/fixtures/mock_atenciones.py --port 8899`; devuelve respuestas enlatadas del nuevo contrato, sin padrón. Sólo para ese mock local puede configurarse `allow_http_loopback=1` y base `http://127.0.0.1:8899/Atenciones`.
 
-En la VM usar un menú aislado, URL/clave de testing y CUIL ficticios. Verificar opciones1/2, cada prestadora→cola, rechazos/Portal, aviso a la operadora y contingencia con la API caída. No activar trazas AGI con CUIL reales.
+En la PBX usar menú aislado, clave y CUIL de testing. Comprobar4 claves, Default, aviso al responder y caída de API. La conectividad/TLS/IP admitida se verifica desde la central; no se probaron endpoints reales desde el entorno de desarrollo. No registrar URL GET completa ni activar trazas AGI/DTMF con CUIL reales.
 
-Contrato completo: [ATENCIONES-CONTRACT.md](ATENCIONES-CONTRACT.md). Las pruebas automatizadas no equivalen a aceptación de la PBX/CRM reales.
+Campos de Dynamic Routes comprobados contra el [código público de IssabelPBX](https://github.com/IssabelFoundation/issabelPBX/blob/master/dynroute/functions.inc.php). Contrato: [ATENCIONES-CONTRACT.md](ATENCIONES-CONTRACT.md).

@@ -21,11 +21,9 @@ ROOT = Path(__file__).resolve().parents[1] / 'tools' / 'afiliados-crm-agi'
 PHP = os.environ.get('AFILIADOS_TEST_PHP') or shutil.which('php')
 
 
-def record(**changes):
-    data = dict(cuilValido=True, esTitular=True, activo=True,
-                prestadora='Prestadora de prueba', provincia='Provincia ficticia',
-                referencias=[], esProveedor=False)
-    data.update(changes)
+def record(destino='CALL_CENTER', **extras):
+    data = dict(destino=destino)
+    data.update(extras)
     return data
 
 
@@ -150,6 +148,11 @@ class AtencionesAgi(unittest.TestCase):
         values.update(variables or {})
         return self.agi('crm_get_afiliado.agi.php', values, option, uniqueid)
 
+    def test_server_can_return_only_destino_without_affiliate_fields(self):
+        self.state['payload'] = {'destino': 'PORTAL'}
+        values, _, _ = self.lookup(option='2')
+        self.assertEqual(values['CRM_ROUTE_KEY'], 'PORTAL')
+
     def test_two_agi_files_and_the_local_config_are_sufficient(self):
         installed = self.directory / 'agi-bin'
         installed.mkdir()
@@ -157,7 +160,7 @@ class AtencionesAgi(unittest.TestCase):
             shutil.copy2(ROOT / name, installed / name)
         values, _, _ = self.agi('crm_get_afiliado.agi.php', dict(dtmfinput='20000000001'),
                                 option='2', script_dir=installed)
-        self.assertEqual(values['CRM_ROUTE_KEY'], 'Prestadora de prueba')
+        self.assertEqual(values['CRM_ROUTE_KEY'], 'CALL_CENTER')
         values['MEMBERINTERFACE'] = 'Local/1001@from-queue/n'
         self.agi('crm_set_atencion.agi.php', values, script_dir=installed, timeout=1)
         self.assertTrue(self.state['post_finished'].wait(3))
@@ -168,8 +171,8 @@ class AtencionesAgi(unittest.TestCase):
 
     def test_lookup_resolves_a_value_and_uses_the_real_api_contract(self):
         values, commands, stderr = self.lookup()
-        self.assertEqual(values['CRM_ROUTE_KEY'], 'END_CALL')
-        self.assertEqual(values['CRM_PRESTADORA'], 'Prestadora de prueba')
+        self.assertEqual(values['CRM_ROUTE_KEY'], 'CALL_CENTER')
+        self.assertEqual(values['CRM_PRESTADORA'], '')
         request = self.state['requests'][0]
         parsed = urlsplit(request['path'])
         self.assertEqual(parsed.path, '/Atenciones/api/central/preatendedor')
@@ -180,23 +183,26 @@ class AtencionesAgi(unittest.TestCase):
         self.assertEqual(values['dtmfinput'], '')
         self.assertNotIn('test-secret', '\n'.join(commands) + stderr)
 
-    def test_attention_returns_the_literal_prestadora_in_the_single_route_variable(self):
-        self.state['payload'] = record(prestadora='Osde')
-        values, _, _ = self.lookup(option='2')
-        self.assertEqual(values['CRM_ROUTE_KEY'], 'Osde')
+    def test_future_destinations_are_passed_through_unchanged(self):
+        for destination in ('ATENCION_ESPECIAL', 'atencion_norte-2027', 'COLA_Ñ'):
+            with self.subTest(destination=destination):
+                self.state['payload'] = record(destination)
+                values, _, _ = self.lookup(option='2')
+                self.assertEqual(values['CRM_ROUTE_KEY'], destination)
 
-    def test_attention_without_prestadora_falls_back_to_general_call_center(self):
-        for name in (None, ''):
-            with self.subTest(prestadora=name):
-                self.state['payload'] = record(prestadora=name)
+    def test_empty_destination_uses_general_call_center(self):
+        for destination in (None, '', '   '):
+            with self.subTest(destination=destination):
+                self.state['payload'] = record(destination)
                 values, _, _ = self.lookup(option='2')
                 self.assertEqual(values['CRM_ROUTE_KEY'], 'CALL_CENTER')
 
-    def test_reference_object_is_not_a_valid_json_list(self):
-        self.state['payload'] = record(referencias={})
-        values, _, _ = self.lookup()
-        self.assertEqual(values['CRM_ROUTE_KEY'], 'CALL_CENTER')
-        self.assertEqual(values['CRM_PRESTADORA'], '')
+    def test_non_string_destination_is_invalid(self):
+        for destination in ([], {}, True, 12):
+            with self.subTest(destination=destination):
+                self.state['payload'] = record(destination)
+                values, _, _ = self.lookup()
+                self.assertEqual(values['CRM_ROUTE_KEY'], 'CALL_CENTER')
 
     def test_attended_notification_uses_original_id_and_only_the_extension(self):
         values, _, _ = self.lookup(option='2')
@@ -212,40 +218,22 @@ class AtencionesAgi(unittest.TestCase):
                          dict(llamada=['caller.123'], interno=['1001']))
         self.assertEqual(list(self.spool.iterdir()), [])
 
-    def test_menu_rules_return_decision_keys_without_routing_the_channel(self):
-        cases = [
-            ('1', record(cuilValido=False, esProveedor=True), 'INVALID_CUIL'),
-            ('1', record(esProveedor=True, esTitular=False, activo=False), 'END_CALL'),
-            ('1', record(), 'END_CALL'),
-            ('1', record(activo=False), 'Prestadora de prueba'),
-            ('1', record(esTitular=False, activo=False, referencias=['FICTIONAL_REF']), 'Prestadora de prueba'),
-            ('1', record(esTitular=False, activo=False, prestadora=None, provincia=None), 'CALL_CENTER'),
-            ('2', record(cuilValido=False, esTitular=False), 'INVALID_CUIL'),
-            ('2', record(esTitular=False), 'END_CALL'),
-            ('2', record(activo=False, referencias=['FICTIONAL_REF']), 'END_CALL'),
-            ('2', record(referencias=['FICTIONAL_REF']), 'PORTAL'),
-            ('2', record(esProveedor=True, referencias=['FICTIONAL_REF']), 'PORTAL'),
-            ('2', record(esProveedor=True), 'Prestadora de prueba'),
-            ('2', record(), 'Prestadora de prueba'),
-        ]
-        for option, payload, expected in cases:
-            with self.subTest(option=option, payload=payload):
-                self.state['payload'] = payload
-                values, _, _ = self.lookup(option=option)
-                self.assertEqual(values['CRM_ROUTE_KEY'], expected)
+    def test_server_decisions_are_used_for_either_menu_option_without_local_rules(self):
+        for option in ('1', '2'):
+            for destination in ('CALL_CENTER', 'PORTAL', 'END_CALL', 'INVALID_CUIL'):
+                with self.subTest(option=option, destination=destination):
+                    self.state['payload'] = record(destination)
+                    values, _, _ = self.lookup(option=option)
+                    self.assertEqual(values['CRM_ROUTE_KEY'], destination)
 
-    def test_prestadora_keeps_unicode_case_and_escaping_without_overriding_rejection(self):
-        name = 'Prestadora Ñandú "Prueba" \\ Sucursal'
-        self.state['payload'] = record(prestadora=name)
+    def test_destination_text_is_preserved_and_safely_escaped(self):
+        destination = 'Atención "Especial" \\ Norte'
+        self.state['payload'] = record(destination)
         values, _, _ = self.lookup(option='2')
-        self.assertEqual(values['CRM_ROUTE_KEY'], name)
-        self.assertEqual(values['CRM_PRESTADORA'], name)
-        values, _, _ = self.lookup(option='1')
-        self.assertEqual(values['CRM_ROUTE_KEY'], 'END_CALL')
+        self.assertEqual(values['CRM_ROUTE_KEY'], destination)
 
     def test_optional_and_invalid_cuil_are_sent_to_the_api_for_validation(self):
-        self.state['payload'] = record(cuilValido=False, esTitular=False, activo=False,
-                                       prestadora=None, provincia=None)
+        self.state['payload'] = record('INVALID_CUIL')
         for cuil in ('', '12', ' 20-00000000-1 '):
             with self.subTest(cuil=cuil):
                 values, _, _ = self.lookup(cuil=cuil)
@@ -266,12 +254,8 @@ class AtencionesAgi(unittest.TestCase):
                 self.assertNotIn('20000000001', stderr)
 
     def test_bad_json_types_and_oversized_responses_are_technical_errors(self):
-        missing = record()
-        del missing['cuilValido']
-        cases = [b'not JSON', b'[]', missing, record(cuilValido='false'),
-                 record(activo=1), record(referencias=None), record(referencias=[1]),
-                 record(prestadora=['wrong type']), record(prestadora='bad\nvalue'),
-                 b' ' * 17000]
+        cases = [b'not JSON', b'[]', {}, {'cuilValido': True, 'prestadora': 'IGNORED'},
+                 record('bad\nvalue'), record('x' * 513), b' ' * 17000]
         for payload in cases:
             with self.subTest(payload_type=type(payload).__name__):
                 self.state['payload'] = payload
@@ -280,6 +264,7 @@ class AtencionesAgi(unittest.TestCase):
                 self.assertEqual(values['CRM_PRESTADORA'], '')
 
     def test_lookup_times_out_at_three_seconds(self):
+        self.state['payload'] = record('PORTAL')
         self.state['get_delay'] = 4.2
         started = time.monotonic()
         values, _, _ = self.lookup()
@@ -313,15 +298,18 @@ class AtencionesAgi(unittest.TestCase):
                 self.assertEqual(values[name], 'foreign_crm_set_atencion.agi.php')
                 self.assertEqual(values['CRM_QAGI_CONFLICT'], '1')
 
-    def test_option_three_does_not_call_the_api(self):
-        values, _, _ = self.lookup(option='3')
-        self.assertEqual(values['CRM_ROUTE_KEY'], 'OPTION_3')
-        self.assertEqual(self.state['requests'], [])
-        self.assertNotIn('QAGI', values)
+    def test_any_menu_digit_is_forwarded_for_the_server_to_decide(self):
+        for option in ('0', '3', '9'):
+            with self.subTest(option=option):
+                values, _, _ = self.lookup(option=option)
+                self.assertEqual(values['CRM_ROUTE_KEY'], 'CALL_CENTER')
+                query = parse_qs(urlsplit(self.state['requests'][-1]['path']).query)
+                self.assertEqual(query['opcion'], [option])
+        self.assertEqual(len(self.state['requests']), 3)
 
     def test_menu_option_can_be_read_from_the_inherited_ivr_variable(self):
         values, _, _ = self.lookup(option='', variables=dict(IVR_DIGIT_PRESSED='2'))
-        self.assertEqual(values['CRM_ROUTE_KEY'], 'Prestadora de prueba')
+        self.assertEqual(values['CRM_ROUTE_KEY'], 'CALL_CENTER')
         self.assertEqual(len(self.state['requests']), 1)
         query = parse_qs(urlsplit(self.state['requests'][0]['path']).query)
         self.assertEqual(query['opcion'], ['2'])
@@ -333,12 +321,14 @@ class AtencionesAgi(unittest.TestCase):
         self.assertNotIn('Fatal', stderr)
         self.assertEqual(self.state['requests'], [])
 
-    def test_medical_fields_and_cuil_are_not_exported_to_channel_or_jobs(self):
-        self.state['payload'] = record(referencias=['PRIVATE_TEST_REFERENCE'])
+    def test_extra_affiliate_fields_are_not_used_or_exported(self):
+        self.state['payload'] = record('PORTAL', referencias=['PRIVATE_TEST_REFERENCE'],
+                                       prestadora='PRIVATE_TEST_PROVIDER', esTitular=False,
+                                       activo=False, esProveedor=True)
         values, commands, stderr = self.lookup(option='2')
         self.assertEqual(values['CRM_ROUTE_KEY'], 'PORTAL')
         output = '\n'.join(commands) + stderr + json.dumps(values)
-        for sensitive in ('PRIVATE_TEST_REFERENCE', 'test-secret', '20000000001'):
+        for sensitive in ('PRIVATE_TEST_REFERENCE', 'PRIVATE_TEST_PROVIDER', 'test-secret', '20000000001'):
             self.assertNotIn(sensitive, output)
         self.assertEqual(values['CRM_CUIL'], '')
         self.assertEqual(list(self.spool.iterdir()), [])
@@ -397,6 +387,7 @@ class AtencionesAgi(unittest.TestCase):
         self.assertEqual(self.state['requests'], [])
 
     def test_https_requires_a_trusted_certificate_and_matching_hostname(self):
+        self.state['payload'] = record('PORTAL')
         cert, key = self.directory / 'cert.pem', self.directory / 'key.pem'
         subprocess.run(['openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes',
                         '-keyout', str(key), '-out', str(cert), '-days', '1',
@@ -424,7 +415,7 @@ class AtencionesAgi(unittest.TestCase):
         self.assertEqual(self.state['requests'], [])
         self.conf.write_text(trusted)
         values, _, _ = self.lookup()
-        self.assertEqual(values['CRM_ROUTE_KEY'], 'END_CALL')
+        self.assertEqual(values['CRM_ROUTE_KEY'], 'PORTAL')
         self.assertEqual(len(self.state['requests']), 1)
 
     def test_worker_rejects_external_or_malformed_jobs_without_http(self):
@@ -451,20 +442,20 @@ class AtencionesAgi(unittest.TestCase):
         mock = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mock)
         self.server.RequestHandlerClass = mock.make_handler('test-secret')
-        cases = [('20000000001', '1', 'END_CALL', 'Prestadora A'),
-                 ('20000000001', '2', 'Prestadora A', 'Prestadora A'),
-                 ('20000000028', '2', 'PORTAL', 'Prestadora B'),
-                 ('20000000036', '1', 'Prestadora A', 'Prestadora A'),
-                 ('20000000036', '2', 'END_CALL', 'Prestadora A'),
-                 ('20000000044', '2', 'END_CALL', 'Prestadora B'),
-                 ('30000000007', '1', 'END_CALL', ''),
-                 ('20000000052', '1', 'CALL_CENTER', ''),
-                 ('123', '1', 'INVALID_CUIL', '')]
-        for cuil, option, decision, prestadora in cases:
+        cases = [('20000000001', '1', 'END_CALL'),
+                 ('20000000001', '2', 'CALL_CENTER'),
+                 ('20000000028', '2', 'PORTAL'),
+                 ('20000000036', '1', 'CALL_CENTER'),
+                 ('20000000036', '2', 'END_CALL'),
+                 ('20000000044', '2', 'END_CALL'),
+                 ('30000000007', '1', 'END_CALL'),
+                 ('20000000052', '1', 'CALL_CENTER'),
+                 ('20000000060', '2', 'ATENCION_ESPECIAL'),
+                 ('123', '1', 'INVALID_CUIL')]
+        for cuil, option, destination in cases:
             with self.subTest(cuil=cuil, option=option):
                 values, _, _ = self.lookup(option=option, cuil=cuil)
-                self.assertEqual(values['CRM_ROUTE_KEY'], decision)
-                self.assertEqual(values['CRM_PRESTADORA'], prestadora)
+                self.assertEqual(values['CRM_ROUTE_KEY'], destination)
 
 
 if __name__ == '__main__':
