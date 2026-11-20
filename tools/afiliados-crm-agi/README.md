@@ -6,6 +6,21 @@ Integración standalone mediante Dynamic Routes y dos AGI, PHP CLI 5.4+ con cURL
 
 Contrato y reglas completas: [ATENCIONES-CONTRACT.md](ATENCIONES-CONTRACT.md).
 
+## Descargar el paquete standalone
+
+El paquete contiene únicamente los dos AGI, sus auxiliares, configuración de ejemplo, mock y esta guía. No contiene workflows, addon ni credenciales. Se descarga directamente del repositorio, sin Git:
+
+```sh
+curl -fL https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/feat/afiliados-crm-agi/tools/afiliados-crm-agi/dist/afiliados-crm-agi.tgz -o /tmp/afiliados-crm-agi.tgz
+tar --no-same-owner -xzf /tmp/afiliados-crm-agi.tgz -C /tmp
+cd /tmp/afiliados-crm-agi
+sha256sum -c SHA256SUMS
+```
+
+Continuar con la instalación de abajo desde la carpeta extraída. `SOURCE.txt` identifica la revisión del código incluida. La URL usa la rama de entrega del PR47; puede fijarse a su commit para repetir una instalación exacta.
+
+Actions y OpenCode están suspendidos por decisión del usuario. La preparación y las verificaciones de esta entrega son locales. No se requiere CI para instalar o ejecutar estos scripts.
+
 ## Instalar en Issabel
 
 Desde esta carpeta, como root:
