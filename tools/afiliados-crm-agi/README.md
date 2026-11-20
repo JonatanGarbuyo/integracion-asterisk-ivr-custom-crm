@@ -1,6 +1,6 @@
 # Dos AGI para Dynamic Routes y Atenciones
 
-Instalar sólo los dos PHP en `/var/lib/asterisk/agi-bin/` y un `.conf` local. PHP CLI5.4+ con cURL/JSON; sin addon, paquete, Composer, Python en la PBX ni listener AMI. CI y OpenCode permanecen desactivados.
+Instalar sólo los dos PHP en `/var/lib/asterisk/agi-bin/` y un `.conf` local. Objetivo del cliente: PHP CLI **5.4.16**, Issabel4 y Asterisk11.25.3. Los scripts usan sintaxis/API PHP5.4+ con cURL/JSON; sin addon, paquete, Composer, Python en la PBX ni listener AMI. CI y OpenCode permanecen desactivados.
 
 Atenciones responde `{"destino":"CALL_CENTER"}`. El AGI copia `destino` a `CRM_ROUTE_KEY`, sin reglas de afiliación ni lista fija de claves. Una clave nueva se configura en Dynamic Routes sin modificar el script. No se calcula prestadora, titularidad, actividad, referencias o proveedor.
 
@@ -34,6 +34,8 @@ api_key = "CLAVE_DE_TESTING"
 
 La base de producción es `https://sistema.ospaca.com/Atenciones`; para el laboratorio usar testing y su clave correspondiente. No guardar claves reales en Git. `curl` y `json` deben aparecer en `php -m`; `exec` debe estar habilitado para despachar el aviso. TLS/hostname siempre verificados; `ca_file` opcional si se acuerda una CA privada.
 
+La última actualización pasó36 pruebas locales con PHP8.4 y el lint de ambos scripts. **Esta actualización aún no se ejecutó en PHP5.4.16 ni en la PBX real.** No es necesario actualizar PHP para seguir la guía; comprobar en la central los dos `php -l` anteriores y las extensiones cURL/JSON. El aviso asíncrono requiere `exec` habilitado en PHP CLI.
+
 ## Ingreso, confirmación y audios
 
 El primer AGI solicita el CUIL, lo reproduce dígito por dígito con las grabaciones propias y pregunta: «Presione 1 para confirmar o 2 para volver a ingresar». Sólo después de 1 consulta Atenciones. No usa SAY DIGITS ni audios numéricos del sistema.
@@ -47,13 +49,30 @@ Copiar las grabaciones a `/var/lib/asterisk/sounds/custom/atenciones/`:
 | `confirme-cuil.wav` | «Presione 1 para confirmar o 2 para volver a ingresar.» |
 | `digito-0.wav` a `digito-9.wav` | Un dígito por archivo: cero, uno, dos, tres, cuatro, cinco, seis, siete, ocho y nueve. |
 
-Son 13 archivos. Usar WAV PCM de 16 bits, mono, 8000 Hz y extensión `.wav` minúscula ([formato de Asterisk11](https://github.com/asterisk/asterisk/blob/11/formats/format_wav.c)). El nombre visible de una grabación en System Recordings no necesariamente coincide con su archivo físico: esta carpeta y estos nombres eliminan esa ambigüedad.
+Son13 archivos. La tabla muestra WAV PCM16bits, mono,8000Hz como formato recomendado ([format_wav de Asterisk11](https://github.com/asterisk/asterisk/blob/11/formats/format_wav.c)). **MP3 mono8kHz también puede usarse si `format_mp3.so` está disponible y cargado**: ese módulo de Asterisk11 registra la extensión mp3 e indica que8000Hz mono es óptimo ([fuente oficial](https://github.com/asterisk/asterisk/blob/11/addons/format_mp3.c)). No alcanza con que esté instalado MP3Player/app_mp3.
+
+Comprobar en la PBX, sin cambiar su configuración:
+
+```sh
+asterisk -rx 'module show like format_mp3.so'
+asterisk -rx 'core show file formats'
+```
+
+Si aparece el módulo cargado y mp3 como formato soportado, se pueden copiar `ingrese-cuil.mp3`, `usted-ingreso.mp3`, `confirme-cuil.mp3` y `digito-0.mp3`…`digito-9.mp3` en la misma carpeta. **No cambia el .conf ni el AGI**: Asterisk recibe el nombre sin extensión y busca un formato que pueda leer. El archivo físico sí conserva su extensión; no renombrar un MP3 a WAV.
+
+Si no está disponible el lector MP3, convertir en el equipo de trabajo antes de copiar a la PBX. Ejemplo con FFmpeg instalado en ese equipo:
+
+```sh
+ffmpeg -i ingrese-cuil.mp3 -ac 1 -ar 8000 -c:a pcm_s16le ingrese-cuil.wav
+```
+
+Repetir para las13 grabaciones. No hace falta instalar FFmpeg ni modificar módulos en la central. El nombre visible de una grabación en System Recordings no necesariamente coincide con su archivo físico: usar los nombres indicados en esta carpeta.
 
 ```sh
 install -d -o asterisk -g asterisk -m 0755 /var/lib/asterisk/sounds/custom/atenciones
 ```
 
-Copiar allí los WAV mediante SFTP/SCP, con lectura para asterisk (por ejemplo `root:asterisk`, modo0644). No reemplazar los audios del sistema. Las rutas se pueden cambiar en el `.conf`, relativas a `/var/lib/asterisk/sounds/` y **sin extensión**:
+Copiar allí los audios del formato elegido mediante SFTP/SCP, con lectura para asterisk (por ejemplo `root:asterisk`, modo0644). No reemplazar los audios del sistema. Las rutas se pueden cambiar en el `.conf`, relativas a `/var/lib/asterisk/sounds/` y **sin extensión**:
 
 ```ini
 [identification]
