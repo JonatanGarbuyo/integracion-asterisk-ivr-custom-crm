@@ -104,7 +104,7 @@ class AtencionesAgi(unittest.TestCase):
         variables = dict(variables or {})
         attempts = iter(interaction if interaction is not None else [('20000000001', '1')])
         pending_digits = []
-        confirmation = None
+        confirmations = iter(())
         audio_errors = audio_errors or {}
         initial_get_count = sum(r['method'] == 'GET' for r in self.state['requests'])
         env = dict(os.environ, AFILIADOS_CRM_CONF=str(self.conf))
@@ -139,12 +139,13 @@ class AtencionesAgi(unittest.TestCase):
             elif tokens[:2] == ['GET', 'OPTION']:
                 if tokens[2].endswith('ingrese-cuil'):
                     cuil, confirmation = next(attempts, ('', None))
+                    confirmations = iter(confirmation if isinstance(confirmation, (list, tuple)) else [confirmation])
                     pending_digits = list(cuil) + (['#'] if isinstance(cuil, str) and 0 < len(cuil) < 11 else [])
                     digit = pending_digits.pop(0) if pending_digits else None
                 else:
                     self.assertEqual(sum(r['method'] == 'GET' for r in self.state['requests']), initial_get_count,
                                      'The API was called before confirming the CUIL')
-                    digit = confirmation
+                    digit = next(confirmations, None)
                 response = '200 result=%s endpos=8000\n' % (ord(digit) if digit else 0)
                 response = audio_errors.get(tokens[2], response)
             elif tokens[:3] == ['WAIT', 'FOR', 'DIGIT']:
@@ -187,6 +188,16 @@ class AtencionesAgi(unittest.TestCase):
         values, _, _ = self.lookup(option='2')
         self.assertEqual(values['CRM_ROUTE_KEY'], 'PORTAL')
 
+    def test_invalid_confirmation_keeps_cuil_and_repeats_only_the_question(self):
+        values, commands, _ = self.lookup(interaction=[('20000000001', ['3', '1'])])
+        self.assertEqual(values['CRM_ROUTE_KEY'], 'CALL_CENTER')
+        self.assertEqual(sum(c.startswith('GET OPTION "custom/atenciones/ingrese-cuil"') for c in commands), 1)
+        self.assertEqual(sum(c.startswith('STREAM FILE "custom/atenciones/usted-ingreso"') for c in commands), 1)
+        self.assertEqual(sum(c.startswith('GET OPTION "custom/atenciones/confirme-cuil"') for c in commands), 2)
+        self.assertEqual(len(self.state['requests']), 1)
+        query = parse_qs(urlsplit(self.state['requests'][0]['path']).query)
+        self.assertEqual(query['cuil'], ['20000000001'])
+
     def test_reenter_queries_only_the_last_confirmed_cuil(self):
         values, commands, _ = self.lookup(interaction=[('20000000001', '2'), ('27000000002', '1')])
         self.assertEqual(len(self.state['requests']), 1)
@@ -218,15 +229,44 @@ class AtencionesAgi(unittest.TestCase):
         self.assertIn('STREAM FILE "custom/piloto/numero-2" ""', commands)
         self.assertIn('GET OPTION "custom/piloto/confirmacion" "0123456789*#" 5000', commands)
 
-    def test_three_failed_input_or_confirmation_attempts_never_query(self):
-        for attempts in ([('', None)] * 3, [('20000000001', '2')] * 3,
-                         [('20000000001', None)] * 3, [('20000000001', '9')] * 3,
-                         [('20000000001', '*')] * 3, [('12*', '1')] * 3):
+    def test_three_failed_input_or_reentry_attempts_never_query(self):
+        for attempts in ([('', None)] * 3, [('20000000001', '2')] * 3, [('12*', '1')] * 3):
             with self.subTest(attempts=attempts):
                 values, commands, _ = self.lookup(interaction=attempts)
                 self.assertEqual(values['CRM_ROUTE_KEY'], 'INPUT_FAILED')
                 self.assertEqual(sum(c.startswith('GET OPTION "custom/atenciones/ingrese-cuil"') for c in commands), 3)
                 self.assertEqual(self.state['requests'], [])
+
+    def test_exhausted_confirmation_budget_returns_input_failed_without_reentering(self):
+        for replies in ([None, None, None], ['3', '9', '#'], ['*', '0', '3']):
+            with self.subTest(replies=replies):
+                values, commands, _ = self.lookup(interaction=[('20000000001', replies)])
+                self.assertEqual(values['CRM_ROUTE_KEY'], 'INPUT_FAILED')
+                self.assertEqual(sum(c.startswith('GET OPTION "custom/atenciones/ingrese-cuil"') for c in commands), 1)
+                self.assertEqual(sum(c.startswith('GET OPTION "custom/atenciones/confirme-cuil"') for c in commands), 3)
+                self.assertEqual(self.state['requests'], [])
+
+    def test_confirmation_budget_resets_on_explicit_reentry(self):
+        values, commands, _ = self.lookup(interaction=[('20000000001', ['3', '9', '2']),
+                                                      ('27000000002', [None, '3', '1'])])
+        self.assertEqual(values['CRM_ROUTE_KEY'], 'CALL_CENTER')
+        self.assertEqual(sum(c.startswith('GET OPTION "custom/atenciones/ingrese-cuil"') for c in commands), 2)
+        self.assertEqual(sum(c.startswith('GET OPTION "custom/atenciones/confirme-cuil"') for c in commands), 6)
+        self.assertEqual(len(self.state['requests']), 1)
+        query = parse_qs(urlsplit(self.state['requests'][0]['path']).query)
+        self.assertEqual(query['cuil'], ['27000000002'])
+
+    def test_confirmation_limit_is_configurable_independently_of_input_limit(self):
+        self.conf.write_text(self.conf.read_text() + '\n[identification]\nmax_attempts=1\nmax_confirmation_attempts=2\n')
+        values, commands, _ = self.lookup(interaction=[('20000000001', ['3', '1'])])
+        self.assertEqual(values['CRM_ROUTE_KEY'], 'CALL_CENTER')
+        self.assertEqual(sum(c.startswith('GET OPTION "custom/atenciones/ingrese-cuil"') for c in commands), 1)
+        self.assertEqual(sum(c.startswith('GET OPTION "custom/atenciones/confirme-cuil"') for c in commands), 2)
+        count = len(self.state['requests'])
+        values, commands, _ = self.lookup(interaction=[('20000000001', ['3', '9', '1'])])
+        self.assertEqual(values['CRM_ROUTE_KEY'], 'INPUT_FAILED')
+        self.assertEqual(sum(c.startswith('GET OPTION "custom/atenciones/confirme-cuil"') for c in commands), 2)
+        self.assertEqual(len(self.state['requests']), count)
 
     def test_configured_attempts_and_integer_seconds_are_used(self):
         self.conf.write_text(self.conf.read_text() + '\n[identification]\nmax_attempts=2\n'
@@ -241,7 +281,8 @@ class AtencionesAgi(unittest.TestCase):
 
     def test_bad_input_settings_are_technical_errors_without_playback(self):
         original = self.conf.read_text()
-        for setting in ('max_attempts=0', 'max_attempts[]=3', 'input_timeout=1.5',
+        for setting in ('max_attempts=0', 'max_attempts[]=3', 'max_confirmation_attempts=0',
+                        'max_confirmation_attempts[]=3', 'max_confirmation_attempts=1.5', 'input_timeout=1.5',
                         'confirmation_timeout=-1', 'request_audio=../secret', 'confirm_audio=prompt.wav'):
             with self.subTest(setting=setting):
                 self.conf.write_text(original + '\n[identification]\n' + setting + '\n')

@@ -34,7 +34,28 @@ api_key = "CLAVE_DE_TESTING"
 
 La base de producción es `https://sistema.ospaca.com/Atenciones`; para el laboratorio usar testing y su clave correspondiente. No guardar claves reales en Git. `curl` y `json` deben aparecer en `php -m`; `exec` debe estar habilitado para despachar el aviso. TLS/hostname siempre verificados; `ca_file` opcional si se acuerda una CA privada.
 
-La última actualización pasó36 pruebas locales con PHP8.4 y el lint de ambos scripts. **Esta actualización aún no se ejecutó en PHP5.4.16 ni en la PBX real.** No es necesario actualizar PHP para seguir la guía; comprobar en la central los dos `php -l` anteriores y las extensiones cURL/JSON. El aviso asíncrono requiere `exec` habilitado en PHP CLI.
+La corrección de confirmación se verifica localmente con PHP8.4. El usuario ya validó sintaxis de la versión anterior en PHP5.4.16 y GET real desde la central. **La corrección actual todavía necesita su prueba en la PBX.** No es necesario actualizar PHP para seguir la guía; comprobar en la central los dos `php -l` anteriores y las extensiones cURL/JSON. El aviso asíncrono requiere `exec` habilitado en PHP CLI.
+
+## Actualizar sólo el AGI de consulta
+
+Como root, esta cadena se detiene si falla la descarga, el lint o el backup. Conserva el .conf y el segundo AGI:
+
+```sh
+curl -fL --connect-timeout 5 --max-time 30 \
+  'https://raw.githubusercontent.com/JonatanGarbuyo/integracion-asterisk-ivr-custom-crm/feat/afiliados-crm-agi/tools/afiliados-crm-agi/crm_get_afiliado.agi.php' \
+  -o /tmp/crm_get_afiliado.agi.php &&
+php -l /tmp/crm_get_afiliado.agi.php &&
+cp -a /var/lib/asterisk/agi-bin/crm_get_afiliado.agi.php \
+  "/root/crm_get_afiliado.agi.php.$(date +%Y%m%d-%H%M%S).bak" &&
+install -o root -g asterisk -m 0750 /tmp/crm_get_afiliado.agi.php \
+  /var/lib/asterisk/agi-bin/crm_get_afiliado.agi.php.new &&
+mv -f /var/lib/asterisk/agi-bin/crm_get_afiliado.agi.php.new \
+  /var/lib/asterisk/agi-bin/crm_get_afiliado.agi.php
+```
+
+El reemplazo final es por rename en el mismo directorio. El nuevo script se usa en la siguiente ejecución AGI; no requiere reiniciar Asterisk ni regenerar el dialplan. Para configurar otro límite, agregar `max_confirmation_attempts = 3` dentro de la sección `[identification]` existente. No sustituir el .conf: contiene la clave y el ca_file configurados localmente.
+
+Prueba: ingresar CUIL, esperar la pregunta y marcar3. Debe repetir sólo la pregunta. Marcar1 consulta ese mismo CUIL; marcar2 solicita uno nuevo. Tres preguntas sin elección válida, con defaults, terminan en INPUT_FAILED. Esta corrección no modifica el DTMF del teléfono/troncal ni la lectura del número; la pérdida de tonos reportada desde móvil sigue pendiente de diagnóstico.
 
 ## Ingreso, confirmación y audios
 
@@ -77,6 +98,7 @@ Copiar allí los audios del formato elegido mediante SFTP/SCP, con lectura para 
 ```ini
 [identification]
 max_attempts = 3
+max_confirmation_attempts = 3
 input_timeout = 5
 confirmation_timeout = 5
 request_audio = "custom/atenciones/ingrese-cuil"
@@ -85,9 +107,9 @@ confirm_audio = "custom/atenciones/confirme-cuil"
 digit_audio_prefix = "custom/atenciones/digito-"
 ```
 
-Agregar esta sección también al actualizar una instalación existente; los valores mostrados son los predeterminados. Intentos y tiempos aceptan enteros positivos1..999; tiempos en segundos. `max_attempts` cuenta el primero, no tres reintentos adicionales. Se reinicia por cada ejecución del AGI.
+Agregar esta sección también al actualizar una instalación existente; los valores mostrados son los predeterminados. Intentos y tiempos aceptan enteros positivos1..999; tiempos en segundos. `max_attempts` limita los ingresos de CUIL, incluido el primero. `max_confirmation_attempts` limita las preguntas de confirmación por cada CUIL, incluida la primera; su valor predeterminado es3 aunque se omita en un .conf existente. Los contadores se reinician al ejecutar el AGI y el de confirmación también con cada CUIL nuevo.
 
-La captura termina automáticamente a los11 dígitos; no hace falta `#`. `#` permite finalizar antes: si se confirma un CUIL corto, la API decide su validez y puede devolver INVALID_CUIL. No se valida padrón ni dígito verificador en la central. Silencio o timeout durante una entrada incompleta, `*`, 2, confirmación distinta de1 o silencio al confirmar consumen un intento y vuelven a solicitar el CUIL. El timeout de entrada es de inactividad entre dígitos; el de confirmación empieza al terminar su audio. Al agotar intentos devuelve INPUT_FAILED, sin consultar la API.
+La captura termina automáticamente a los11 dígitos; no hace falta `#`. `#` permite finalizar antes: si se confirma un CUIL corto, la API decide su validez y puede devolver INVALID_CUIL. No se valida padrón ni dígito verificador en la central. Silencio o timeout durante una entrada incompleta y `*` consumen un intento de ingreso y vuelven a solicitar el CUIL. Al confirmar: **1** acepta; **2** consume el ingreso actual y solicita un CUIL nuevo si quedan ingresos; otra tecla o silencio conserva el CUIL y repite únicamente la pregunta de confirmación, sin repetir la lectura del número ni consumir otro ingreso. Si se agota el límite de confirmación, devuelve INPUT_FAILED sin pedir otro CUIL ni consultar la API. El timeout de entrada es de inactividad entre dígitos; el de confirmación empieza al terminar su audio. Al agotar intentos devuelve INPUT_FAILED, sin consultar la API.
 
 Un archivo faltante/no reproducible, configuración inválida o error de protocolo deja ERROR; si el canal se corta, se detiene sin consultar. Los comandos usados y sus respuestas se contrastaron con [res_agi.c de Asterisk11](https://github.com/asterisk/asterisk/blob/11/res/res_agi.c). Una falla de audio puede terminar la sesión AGI desde Asterisk; ERROR se inicializa antes de reproducir.
 

@@ -38,7 +38,8 @@ function crm_identification_config() {
     $ini = @parse_ini_file(crm_config_path(), true, INI_SCANNER_RAW);
     if (!is_array($ini) || (isset($ini['identification']) && !is_array($ini['identification']))) { return false; }
     $input = isset($ini['identification']) ? $ini['identification'] : array();
-    $config = array('max_attempts' => '3', 'input_timeout' => '5', 'confirmation_timeout' => '5',
+    $config = array('max_attempts' => '3', 'max_confirmation_attempts' => '3',
+        'input_timeout' => '5', 'confirmation_timeout' => '5',
         'request_audio' => 'custom/atenciones/ingrese-cuil',
         'entered_audio' => 'custom/atenciones/usted-ingreso',
         'confirm_audio' => 'custom/atenciones/confirme-cuil',
@@ -46,7 +47,7 @@ function crm_identification_config() {
     foreach ($config as $name => $default) {
         $value = isset($input[$name]) ? $input[$name] : $default;
         if (!is_string($value)) { return false; }
-        if (in_array($name, array('max_attempts', 'input_timeout', 'confirmation_timeout'), true)) {
+        if (in_array($name, array('max_attempts', 'max_confirmation_attempts', 'input_timeout', 'confirmation_timeout'), true)) {
             if (!preg_match('/^[1-9][0-9]{0,2}$/D', $value)) { return false; }
             $config[$name] = (int) $value;
         } else {
@@ -114,8 +115,14 @@ function crm_confirmed_cuil($config) {
             $reply = crm_agi_cmd('STREAM FILE "' . $config['digit_audio_prefix'] . $number . '" ""');
             if ($reply[0] !== '0') { throw new Exception('audio_or_channel_failed'); }
         }
-        $confirmed = crm_input_digit('GET OPTION "' . $config['confirm_audio'] . '" "0123456789*#" ' . ($config['confirmation_timeout'] * 1000));
-        if ($confirmed === '1') { return $cuil; }
+        for ($confirmation = 0; $confirmation < $config['max_confirmation_attempts']; $confirmation++) {
+            $confirmed = crm_input_digit('GET OPTION "' . $config['confirm_audio'] . '" "0123456789*#" ' . ($config['confirmation_timeout'] * 1000));
+            if ($confirmed === '1') { return $cuil; }
+            if ($confirmed === '2') { break; }
+        }
+        // Only an explicit '2' requests another CUIL. Invalid keys/silence
+        // keep this value until the separate confirmation budget is exhausted.
+        if ($confirmed !== '2') { return false; }
     }
     return false;
 }
